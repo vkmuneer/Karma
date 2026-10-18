@@ -1,0 +1,12 @@
+<article class="person <%= typeof big !== 'undefined' && big ? 'person--big' : '' %>" data-skills="<%= p.skills.join('|').toLowerCase() %>" data-name="<%= (p.name + ' ' + (p.place || '')).toLowerCase() %>">
+  <div class="avatar">
+    <% if (p.photo) { %><img src="<%= p.photo %>" alt="" loading="lazy"><% } else { %><span><%= h.initials(p.name) %></span><% } %>
+  </div>
+  <div class="person-body">
+    <% if (p.role !== 'volunteer' || p.designation) { %><span class="person-role"><%= h.roleLabel(p, lang) %></span><% } %>
+    <h3><%= p.name %></h3>
+    <% if (p.place || p.occupation) { %><p class="muted"><%= [p.occupation, p.place].filter(Boolean).join(' · ') %></p><% } %>
+    <% if (p.skills.length) { %><ul class="chips"><% p.skills.forEach(sk => { %><li><%= sk %></li><% }) %></ul><% } %>
+    <% if (typeof big !== 'undefined' && big && p.bio) { %><p class="person-bio"><%= p.bio %></p><% } %>
+  </div>
+</article>

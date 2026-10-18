@@ -1,0 +1,22 @@
+<%- include('partials/header') %>
+<section class="page-head">
+  <div class="wrap">
+    <h1><%= t('missions') %></h1>
+    <p class="lede"><%= lang === 'ml' ? 'ഫയർ ആൻഡ് റെസ്ക്യൂ, പോലീസ് എന്നിവരുമായി ചേർന്ന് കേരളത്തിനകത്തും പുറത്തും നടത്തിയ രക്ഷാദൗത്യങ്ങൾ.' : 'Rescue missions inside and outside Kerala, carried out with Fire & Rescue and the Police.' %></p>
+  </div>
+</section>
+<section class="section">
+  <div class="wrap">
+    <% if (categories.length > 1) { %>
+    <div class="filters" role="list">
+      <a role="listitem" href="/missions" class="chip-link <%= !category ? 'on' : '' %>"><%= t('view_all') %></a>
+      <% categories.forEach(c => { %><a role="listitem" href="/missions?category=<%= c.key %>" class="chip-link <%= category === c.key ? 'on' : '' %>"><%= c[lang] %></a><% }) %>
+    </div>
+    <% } %>
+    <% if (!missions.length) { %><p class="empty"><%= t('no_items') %></p><% } %>
+    <div class="grid-cards">
+      <% missions.forEach(m => { %><%- include('partials/mission-card', { m }) %><% }) %>
+    </div>
+  </div>
+</section>
+<%- include('partials/footer') %>

@@ -1,0 +1,18 @@
+<%- include('partials/header') %>
+<section class="page-head"><div class="wrap"><h1><%= t('updates') %></h1></div></section>
+<section class="section">
+  <div class="wrap update-list update-list--full">
+    <% if (!updates.length) { %><p class="empty"><%= t('no_items') %></p><% } %>
+    <% updates.forEach(u => { %>
+    <a class="ucard" href="/updates/<%= u.id %>">
+      <% if (u.cover) { %><img src="<%= u.cover %>" alt="" loading="lazy"><% } %>
+      <div>
+        <time><%= h.formatDate(u.published_at || u.created_at, lang) %></time>
+        <h3><%= u.title %></h3>
+        <p><%= (u.body || '').slice(0, 220) %><%= (u.body || '').length > 220 ? '…' : '' %></p>
+      </div>
+    </a>
+    <% }) %>
+  </div>
+</section>
+<%- include('partials/footer') %>

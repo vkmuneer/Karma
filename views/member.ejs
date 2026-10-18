@@ -1,0 +1,124 @@
+<%- include('partials/header') %>
+<% if (!me) { %>
+<section class="page-head">
+  <div class="wrap">
+    <h1><%= t('member_login') %></h1>
+    <p class="lede"><%= lang === 'ml' ? 'കർമ്മ അംഗങ്ങൾക്ക് മാത്രമുള്ള അറിയിപ്പുകളും ഫോൺ ഡയറക്ടറിയും കാണാൻ ലോഗിൻ ചെയ്യുക. PIN ലഭിക്കാൻ അഡ്മിനെ ബന്ധപ്പെടുക.' : 'Log in to see member-only alerts and the team phone directory. Ask the admin for your PIN.' %></p>
+  </div>
+</section>
+<section class="section">
+  <div class="wrap narrow">
+    <form class="form card" id="member-login" novalidate>
+      <div class="field"><label for="m-phone"><%= t('phone') %></label><input id="m-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required></div>
+      <div class="field"><label for="m-pin">PIN</label><input id="m-pin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" required></div>
+      <button class="btn btn-primary" type="submit"><%= lang === 'ml' ? 'ലോഗിൻ' : 'Log in' %></button>
+      <p class="form-msg" role="status"></p>
+    </form>
+  </div>
+</section>
+<% } else { %>
+<section class="page-head">
+  <div class="wrap member-head">
+    <div class="avatar avatar-lg"><% if (me.photo) { %><img src="<%= me.photo %>" alt=""><% } else { %><span><%= h.initials(me.name) %></span><% } %></div>
+    <div>
+      <p class="eyebrow"><%= h.roleLabel(me, lang) %></p>
+      <h1><%= me.name %></h1>
+      <div class="hero-cta">
+        <button class="btn btn-primary js-push" type="button" hidden><%= t('enable_notifications') %></button>
+        <span class="push-on" hidden><%= t('notifications_on') %> ✓</span>
+        <button class="btn btn-ghost" type="button" id="member-logout"><%= lang === 'ml' ? 'ലോഗൗട്ട്' : 'Log out' %></button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="tabs wrap" role="tablist">
+  <button role="tab" class="tab on" data-tab="m-alerts" aria-selected="true"><%= t('alerts') %></button>
+  <button role="tab" class="tab" data-tab="m-directory" aria-selected="false"><%= lang === 'ml' ? 'ഡയറക്ടറി' : 'Directory' %></button>
+  <button role="tab" class="tab" data-tab="m-profile" aria-selected="false"><%= lang === 'ml' ? 'എന്റെ പ്രൊഫൈൽ' : 'My profile' %></button>
+</div>
+
+<section class="section tabpanel" id="m-alerts">
+  <div class="wrap alert-list">
+    <% if (!alerts.length) { %><p class="empty"><%= t('no_items') %></p><% } %>
+    <% alerts.forEach(a => { %>
+      <div class="alert-wrap">
+        <% if (a.audience === 'members') { %><span class="pill pill-members"><%= lang === 'ml' ? 'അംഗങ്ങൾക്ക് മാത്രം' : 'Members only' %></span><% } %>
+        <%- include('partials/alert-card', { a, past: !h.isActiveAlert(a) }) %>
+      </div>
+    <% }) %>
+  </div>
+</section>
+
+<section class="section tabpanel" id="m-directory" hidden>
+  <div class="wrap">
+    <div class="toolbar">
+      <label class="sr-only" for="dir-search"><%= t('search') %></label>
+      <input id="dir-search" type="search" placeholder="<%= t('search') %>…">
+      <label class="sr-only" for="dir-blood"><%= t('blood_group') %></label>
+      <select id="dir-blood"><option value=""><%= t('blood_group') %></option><% bloodGroups.forEach(b => { %><option><%= b %></option><% }) %></select>
+    </div>
+    <ul class="directory" id="dir-list">
+      <% directory.forEach(d => { %>
+      <li data-name="<%= (d.name + ' ' + (d.place || '') + ' ' + d.skills.join(' ')).toLowerCase() %>" data-blood="<%= d.blood_group || '' %>">
+        <div class="avatar avatar-sm"><% if (d.photo) { %><img src="<%= d.photo %>" alt="" loading="lazy"><% } else { %><span><%= h.initials(d.name) %></span><% } %></div>
+        <div class="dir-main">
+          <strong><%= d.name %></strong>
+          <span class="muted"><%= [d.role !== 'volunteer' || d.designation ? h.roleLabel(d, lang) : '', d.place].filter(Boolean).join(' · ') %></span>
+          <% if (d.skills.length) { %><span class="dir-skills"><%= d.skills.join(', ') %></span><% } %>
+        </div>
+        <% if (d.blood_group) { %><span class="blood"><%= d.blood_group %></span><% } %>
+        <% if (d.phone) { %><a class="call-btn" href="<%= h.telLink(d.phone) %>" aria-label="Call <%= d.name %>"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg></a><% } %>
+      </li>
+      <% }) %>
+    </ul>
+  </div>
+</section>
+
+<section class="section tabpanel" id="m-profile" hidden>
+  <div class="wrap narrow">
+    <form class="form card" id="profile-form" novalidate>
+      <div class="field photo-field">
+        <span class="label"><%= lang === 'ml' ? 'ഫോട്ടോ' : 'Photo' %></span>
+        <div class="photo-pick">
+          <div class="avatar avatar-lg" id="pf-preview"><% if (me.photo) { %><img src="<%= me.photo %>" alt=""><% } else { %><span><%= h.initials(me.name) %></span><% } %></div>
+          <label class="btn btn-outline" for="pf-file"><%= lang === 'ml' ? 'ഫോട്ടോ മാറ്റുക' : 'Change photo' %></label>
+          <input id="pf-file" type="file" accept="image/*" class="sr-only">
+          <input type="hidden" name="photo" id="pf-photo" value="<%= me.photo || '' %>">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="pf-place"><%= t('place') %></label><input id="pf-place" name="place" value="<%= me.place || '' %>"></div>
+        <div class="field"><label for="pf-blood"><%= t('blood_group') %></label>
+          <select id="pf-blood" name="blood_group"><option value="">—</option><% bloodGroups.forEach(b => { %><option <%= me.blood_group === b ? 'selected' : '' %>><%= b %></option><% }) %></select></div>
+      </div>
+      <div class="field"><label for="pf-occ"><%= lang === 'ml' ? 'ജോലി' : 'Occupation' %></label><input id="pf-occ" name="occupation" value="<%= me.occupation || '' %>"></div>
+      <div class="field"><label for="pf-phone2"><%= lang === 'ml' ? 'രണ്ടാമത്തെ ഫോൺ' : 'Second phone' %></label><input id="pf-phone2" name="phone2" type="tel" value="<%= me.phone2 || '' %>"></div>
+      <fieldset class="field">
+        <legend><%= t('skills') %></legend>
+        <div class="skill-picks">
+          <% const mine = new Set(me.skills); const opts = [...new Set([...skillOptions, ...me.skills])]; opts.forEach((sk, i) => { %>
+            <label class="skill-pick"><input type="checkbox" name="skills" value="<%= sk %>" <%= mine.has(sk) ? 'checked' : '' %>><span><%= sk %></span></label>
+          <% }) %>
+        </div>
+        <label for="pf-skill-other" class="sub-label"><%= lang === 'ml' ? 'മറ്റു കഴിവുകൾ (കോമ ഇട്ട് എഴുതുക)' : 'Other skills (comma separated)' %></label>
+        <input id="pf-skill-other" name="skills_other">
+      </fieldset>
+      <div class="field"><label for="pf-bio"><%= lang === 'ml' ? 'എന്നെക്കുറിച്ച്' : 'About me' %></label><textarea id="pf-bio" name="bio" rows="3"><%= me.bio || '' %></textarea></div>
+      <button class="btn btn-primary" type="submit"><%= lang === 'ml' ? 'സേവ് ചെയ്യുക' : 'Save profile' %></button>
+      <p class="form-msg" role="status"></p>
+    </form>
+
+    <form class="form card" id="pin-form" novalidate>
+      <h2><%= lang === 'ml' ? 'PIN മാറ്റുക' : 'Change PIN' %></h2>
+      <div class="field-row">
+        <div class="field"><label for="pin-cur"><%= lang === 'ml' ? 'ഇപ്പോഴത്തെ PIN' : 'Current PIN' %></label><input id="pin-cur" name="current" type="password" inputmode="numeric" autocomplete="current-password"></div>
+        <div class="field"><label for="pin-new"><%= lang === 'ml' ? 'പുതിയ PIN' : 'New PIN (4–8 digits)' %></label><input id="pin-new" name="pin" type="password" inputmode="numeric" autocomplete="new-password"></div>
+      </div>
+      <button class="btn btn-outline" type="submit"><%= lang === 'ml' ? 'PIN മാറ്റുക' : 'Change PIN' %></button>
+      <p class="form-msg" role="status"></p>
+    </form>
+  </div>
+</section>
+<% } %>
+<%- include('partials/footer') %>

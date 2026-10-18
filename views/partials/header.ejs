@@ -1,0 +1,45 @@
+<%- include('head') %>
+<a class="skip" href="#main">Skip to content</a>
+<% if (liveAlerts.length) { const a = liveAlerts[0]; %>
+<a class="alert-strip level-<%= a.level %>" href="/alerts#alert-<%= a.id %>">
+  <span class="alert-strip-tag"><%= a.level === 'critical' ? 'ALERT' : a.level === 'warning' ? 'WARNING' : 'NOTICE' %></span>
+  <span class="alert-strip-text"><%= a.title %></span>
+  <% if (liveAlerts.length > 1) { %><span class="alert-strip-more">+<%= liveAlerts.length - 1 %></span><% } %>
+</a>
+<% } %>
+<header class="topbar">
+  <div class="topbar-inner wrap">
+    <a class="brand" href="/">
+      <img src="/img/logo-160.png" alt="" width="44" height="44">
+      <span class="brand-text">
+        <strong><%= s.org_name_ml %></strong>
+        <small>Disaster Management Team</small>
+      </span>
+    </a>
+    <nav class="mainnav" aria-label="Main">
+      <% [['/', 'home'], ['/about', 'about'], ['/missions', 'missions'], ['/updates', 'updates'], ['/gallery', 'gallery'], ['/team', 'team'], ['/alerts', 'alerts'], ['/support', 'support']].forEach(([href, key]) => { %>
+        <a href="<%= href %>" class="<%= (href === '/' ? path === '/' : path.startsWith(href)) ? 'on' : '' %>"><%= t(key) %></a>
+      <% }) %>
+    </nav>
+    <div class="topbar-actions">
+      <a class="lang" href="?lang=<%= lang === 'ml' ? 'en' : 'ml' %>" lang="<%= lang === 'ml' ? 'en' : 'ml' %>"><%= t('language') %></a>
+      <% if (s.phones && s.phones[0]) { %>
+      <a class="btn btn-call" href="<%= h.telLink(s.phones[0]) %>" aria-label="<%= t('call_now') %>">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>
+        <span>SOS</span>
+      </a>
+      <% } %>
+      <button class="menu-btn" type="button" aria-expanded="false" aria-controls="drawer" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+<div class="drawer" id="drawer" hidden>
+  <nav class="drawer-nav wrap" aria-label="Menu">
+    <% [['/', 'home'], ['/about', 'about'], ['/missions', 'missions'], ['/updates', 'updates'], ['/gallery', 'gallery'], ['/team', 'team'], ['/alerts', 'alerts'], ['/support', 'support'], ['/contact', 'contact'], ['/join', 'join'], ['/member', member ? 'member_area' : 'member_login']].forEach(([href, key]) => { %>
+      <a href="<%= href %>"><%= t(key) %></a>
+    <% }) %>
+  </nav>
+</div>
+<main id="main">

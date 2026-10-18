@@ -1,0 +1,26 @@
+<%- include('partials/header') %>
+<section class="page-head">
+  <div class="wrap">
+    <p class="eyebrow"><%= t('registered_trust') %></p>
+    <h1><%= s.org_name_ml %></h1>
+    <p class="lede"><%= s.org_name_en %></p>
+  </div>
+</section>
+<section class="section">
+  <div class="wrap prose">
+    <p class="lede-dark"><%= lang === 'ml' ? s.intro_ml : s.intro_en %></p>
+    <% (s.about_sections || []).forEach(sec => { %>
+      <h2><%= lang === 'ml' ? (sec.title_ml || sec.title_en) : (sec.title_en || sec.title_ml) %></h2>
+      <%- h.paragraphs(lang === 'ml' ? (sec.body_ml || sec.body_en) : (sec.body_en || sec.body_ml)) %>
+    <% }) %>
+    <dl class="facts">
+      <div><dt><%= t('founded') %></dt><dd><%= h.formatDate(s.founded, lang) %></dd></div>
+      <div><dt><%= t('volunteers') %></dt><dd><%= s.stat_volunteers %></dd></div>
+      <div><dt><%= t('awards') %></dt><dd><%= s.stat_awards %></dd></div>
+      <div><dt><%= t('equipment') %></dt><dd><%= s.stat_equipment %></dd></div>
+      <div><dt><%= t('address') %></dt><dd><%= s.address %></dd></div>
+    </dl>
+    <p><a class="btn btn-primary" href="/missions"><%= t('missions') %> →</a> <a class="btn btn-outline" href="/team"><%= t('team') %> →</a></p>
+  </div>
+</section>
+<%- include('partials/footer') %>

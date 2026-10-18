@@ -1,0 +1,23 @@
+<%- include('partials/header') %>
+<section class="page-head">
+  <div class="wrap">
+    <h1><%= t('alerts') %></h1>
+    <p class="lede"><%= lang === 'ml' ? 'കാലാവസ്ഥാ മുന്നറിയിപ്പുകളും അടിയന്തര അറിയിപ്പുകളും.' : 'Weather warnings and emergency notices.' %></p>
+    <div class="push-box">
+      <button class="btn btn-primary js-push" type="button" hidden><%= t('enable_notifications') %></button>
+      <span class="push-on" hidden><%= t('notifications_on') %> ✓</span>
+    </div>
+  </div>
+</section>
+<section class="section">
+  <div class="wrap alert-list">
+    <h2><%= t('active_alerts') %></h2>
+    <% if (!active.length) { %><p class="empty"><%= t('no_items') %></p><% } %>
+    <% active.forEach(a => { %><%- include('partials/alert-card', { a }) %><% }) %>
+    <% if (past.length) { %>
+      <h2><%= t('past_alerts') %></h2>
+      <% past.forEach(a => { %><%- include('partials/alert-card', { a, past: true }) %><% }) %>
+    <% } %>
+  </div>
+</section>
+<%- include('partials/footer') %>

@@ -1,0 +1,9 @@
+<article class="alert-card level-<%= a.level %> <%= typeof past !== 'undefined' && past ? 'is-past' : '' %>" id="alert-<%= a.id %>">
+  <div class="alert-card-head">
+    <span class="alert-level"><%= a.level === 'critical' ? 'Critical' : a.level === 'warning' ? 'Warning' : 'Info' %></span>
+    <time><%= h.formatDate(a.created_at, lang) %></time>
+  </div>
+  <h3><%= a.title %></h3>
+  <%- h.paragraphs(a.message) %>
+  <a class="share-link" target="_blank" rel="noopener" href="<%= h.whatsappShare('*' + a.title + '*\n' + (a.message || '') + '\n— ' + s.org_name_ml) %>"><%= t('share_whatsapp') %></a>
+</article>

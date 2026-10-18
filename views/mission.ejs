@@ -1,0 +1,43 @@
+<%- include('partials/header') %>
+<% const cat = h.categoryInfo(mission.category); %>
+<article>
+  <section class="page-head <%= mission.cover ? 'page-head--image' : '' %>" <% if (mission.cover) { %>style="--cover: url('<%= mission.cover %>')"<% } %>>
+    <div class="wrap">
+      <a class="back" href="/missions">← <%= t('missions') %></a>
+      <div class="meta-row">
+        <span class="tag tag-light"><%= cat[lang] %></span>
+        <% if (mission.status === 'ongoing') { %><span class="pill pill-live"><%= t('status_ongoing') %></span><% } %>
+      </div>
+      <h1><%= mission.title %></h1>
+    </div>
+  </section>
+  <section class="section">
+    <div class="wrap detail-grid">
+      <div class="prose">
+        <% if (mission.summary) { %><p class="lede-dark"><%= mission.summary %></p><% } %>
+        <%- h.paragraphs(mission.body) %>
+      </div>
+      <aside class="detail-side">
+        <dl class="facts facts-stack">
+          <% if (mission.location) { %><div><dt><%= t('location') %></dt><dd><%= mission.location %></dd></div><% } %>
+          <% if (mission.event_date) { %><div><dt><%= t('date') %></dt><dd><%= h.formatDate(mission.event_date, lang) %><%= mission.end_date ? ' – ' + h.formatDate(mission.end_date, lang) : '' %></dd></div><% } %>
+          <% if (mission.volunteers_count) { %><div><dt><%= t('volunteers') %></dt><dd><%= mission.volunteers_count %></dd></div><% } %>
+        </dl>
+        <a class="btn btn-whatsapp" target="_blank" rel="noopener" href="<%= h.whatsappShare(mission.title + ' — ' + s.org_name_ml + '\n' + (mission.summary || '')) %>"><%= t('share_whatsapp') %></a>
+      </aside>
+    </div>
+  </section>
+  <% if (photos.length) { %>
+  <section class="section section-alt">
+    <div class="wrap">
+      <h2><%= t('photos') %></h2>
+      <div class="photo-grid">
+        <% photos.forEach(p => { %>
+          <button type="button" class="photo js-lightbox" data-src="<%= p.src %>" data-caption="<%= p.caption || '' %>"><img src="<%= p.src %>" alt="<%= p.caption || '' %>" loading="lazy"></button>
+        <% }) %>
+      </div>
+    </div>
+  </section>
+  <% } %>
+</article>
+<%- include('partials/footer') %>

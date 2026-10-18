@@ -1,0 +1,18 @@
+<%- include('partials/header') %>
+<article>
+  <section class="page-head">
+    <div class="wrap">
+      <a class="back" href="/updates">← <%= t('updates') %></a>
+      <time class="eyebrow"><%= h.formatDate(update.published_at || update.created_at, lang) %></time>
+      <h1><%= update.title %></h1>
+    </div>
+  </section>
+  <section class="section">
+    <div class="wrap prose">
+      <% if (update.cover) { %><img class="cover-img js-lightbox" data-src="<%= update.cover %>" src="<%= update.cover %>" alt=""><% } %>
+      <%- h.paragraphs(update.body) %>
+      <p><a class="btn btn-whatsapp" target="_blank" rel="noopener" href="<%= h.whatsappShare(update.title + ' — ' + s.org_name_ml) %>"><%= t('share_whatsapp') %></a></p>
+    </div>
+  </section>
+</article>
+<%- include('partials/footer') %>

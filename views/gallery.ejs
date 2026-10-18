@@ -1,0 +1,13 @@
+<%- include('partials/header') %>
+<section class="page-head"><div class="wrap"><h1><%= t('gallery') %></h1></div></section>
+<section class="section">
+  <div class="wrap">
+    <% if (!photos.length) { %><p class="empty"><%= t('no_items') %></p><% } %>
+    <div class="photo-grid photo-grid--full">
+      <% photos.forEach(p => { const cap = [p.caption, p.mission_title].filter(Boolean).join(' · '); %>
+        <button type="button" class="photo js-lightbox" data-src="<%= p.src %>" data-caption="<%= cap %>"><img src="<%= p.src %>" alt="<%= p.caption || '' %>" loading="lazy"></button>
+      <% }) %>
+    </div>
+  </div>
+</section>
+<%- include('partials/footer') %>

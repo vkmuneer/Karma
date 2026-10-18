@@ -1,0 +1,7 @@
+node_modules/
+data/
+*.log
+.env
+# Contact spreadsheets contain private phone numbers and addresses — import them through the admin panel instead.
+*.xlsx
+*.csv

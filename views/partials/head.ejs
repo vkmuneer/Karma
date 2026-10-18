@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="<%= lang %>">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title><%= pageTitle ? pageTitle + ' · ' : '' %><%= s.org_name_ml %> | <%= s.org_name_en %></title>
+<meta name="description" content="<%= (pageDescription || '').slice(0, 200) %>">
+<meta name="theme-color" content="#0d0b0a">
+<meta property="og:title" content="<%= pageTitle || s.org_name_en %>">
+<meta property="og:description" content="<%= (pageDescription || '').slice(0, 200) %>">
+<meta property="og:image" content="<%= pageImage || '/img/og-image.jpg' %>">
+<meta property="og:type" content="website">
+<link rel="icon" href="/img/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anek+Malayalam:wdth,wght@75..125,300..800&family=Oswald:wght@500;600&display=swap">
+<link rel="stylesheet" href="/css/style.css?v=1">
+</head>
+<body class="<%= typeof bodyClass !== 'undefined' ? bodyClass : '' %>">

@@ -1,0 +1,19 @@
+<% const cat = h.categoryInfo(m.category); %>
+<a class="mcard <%= m.cover ? '' : 'mcard--text' %>" href="/missions/<%= m.id %>">
+  <% if (m.cover) { %>
+  <div class="mcard-media">
+    <img src="<%= m.cover %>" alt="" loading="lazy">
+    <% if (m.status === 'ongoing') { %><span class="pill pill-live"><%= t('status_ongoing') %></span><% } %>
+  </div>
+  <% } %>
+  <div class="mcard-body">
+    <div class="meta-row">
+      <span class="tag"><%= cat[lang] %></span>
+      <% if (m.event_date) { %><time><%= h.formatDate(m.event_date, lang) %></time><% } %>
+      <% if (!m.cover && m.status === 'ongoing') { %><span class="pill pill-live"><%= t('status_ongoing') %></span><% } %>
+    </div>
+    <h3><%= m.title %></h3>
+    <% if (m.location) { %><p class="mcard-loc"><%= m.location %></p><% } %>
+    <% if (m.summary) { %><p class="mcard-sum"><%= m.summary %></p><% } %>
+  </div>
+</a>

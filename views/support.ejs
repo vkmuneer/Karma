@@ -1,0 +1,32 @@
+<%- include('partials/header') %>
+<section class="page-head">
+  <div class="wrap">
+    <h1><%= t('support') %></h1>
+    <p class="lede"><%= lang === 'ml' ? 'നിങ്ങളുടെ കമ്പനിയുടെ സി.എസ്.ആർ ഫണ്ട് കർമ ഓമശ്ശേരിക്ക് നൽകുന്നതിലൂടെ നേരിട്ട് സമൂഹത്തിന്റെ സുരക്ഷയിലാണ് നിങ്ങൾ നിക്ഷേപിക്കുന്നത്.' : 'CSR funds given to Karma Omassery are a direct investment in the safety of the community.' %></p>
+  </div>
+</section>
+<section class="section">
+  <div class="wrap">
+    <h2><%= t('equipment_needs') %></h2>
+    <div class="table-wrap">
+      <table class="needs">
+        <thead><tr><th>#</th><th><%= lang === 'ml' ? 'ഉപകരണം' : 'Item' %></th><th class="num"><%= lang === 'ml' ? 'തുക' : 'Estimate' %></th></tr></thead>
+        <tbody>
+          <% needs.forEach((n, i) => { %>
+          <tr class="<%= n.fulfilled ? 'done' : '' %>">
+            <td><%= i + 1 %></td>
+            <td><strong><%= n.item %></strong><% if (n.purpose) { %><br><span class="muted"><%= n.purpose %></span><% } %><% if (n.fulfilled) { %> <span class="pill pill-ok"><%= t('fulfilled') %></span><% } %></td>
+            <td class="num"><%= h.formatINR(n.amount) %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+        <tfoot><tr><td></td><td><%= t('total') %></td><td class="num"><%= h.formatINR(total) %></td></tr></tfoot>
+      </table>
+    </div>
+    <div class="callout">
+      <%- h.paragraphs(s.donation_details) %>
+      <p><% (s.phones || []).forEach(p => { %><a class="btn btn-primary" href="<%= h.telLink(p) %>"><%= p %></a> <% }) %></p>
+    </div>
+  </div>
+</section>
+<%- include('partials/footer') %>

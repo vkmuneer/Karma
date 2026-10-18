@@ -1,0 +1,26 @@
+<%- include('partials/header') %>
+<section class="page-head"><div class="wrap"><h1><%= t('contact') %></h1></div></section>
+<section class="section">
+  <div class="wrap contact-grid">
+    <div class="callout callout-emergency">
+      <h2><%= t('emergency') %></h2>
+      <% (s.phones || []).forEach(p => { %><a class="big-phone" href="<%= h.telLink(p) %>"><%= p %></a><% }) %>
+      <% if (s.whatsapp) { %><a class="btn btn-whatsapp" href="https://wa.me/<%= s.whatsapp %>" target="_blank" rel="noopener">WhatsApp</a><% } %>
+    </div>
+    <div class="prose">
+      <h2><%= t('address') %></h2>
+      <p><%= s.address %></p>
+      <% if (s.contact_email) { %><p><a href="mailto:<%= s.contact_email %>"><%= s.contact_email %></a></p><% } %>
+      <h2><%= t('follow_us') %></h2>
+      <p class="socials">
+        <% if (s.facebook) { %><a href="<%= s.facebook %>" target="_blank" rel="noopener">Facebook</a><% } %>
+        <% if (s.instagram) { %><a href="<%= s.instagram %>" target="_blank" rel="noopener">Instagram</a><% } %>
+        <% if (s.youtube) { %><a href="<%= s.youtube %>" target="_blank" rel="noopener">YouTube</a><% } %>
+      </p>
+      <% if (s.map_embed && /^https:\/\/(www\.)?google\.[a-z.]+\/maps\/embed/.test(s.map_embed)) { %>
+        <iframe class="map" src="<%= s.map_embed %>" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Map"></iframe>
+      <% } %>
+    </div>
+  </div>
+</section>
+<%- include('partials/footer') %>

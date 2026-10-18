@@ -1,0 +1,53 @@
+<%- include('partials/header') %>
+<section class="page-head">
+  <div class="wrap">
+    <h1><%= t('team') %></h1>
+    <p class="lede"><%= lang === 'ml' ? 'വിവിധ തുറകളിൽ ജോലി ചെയ്യുന്ന, വിദഗ്ധ പരിശീലനം ലഭിച്ച ചെറുപ്പക്കാർ.' : 'Trained young volunteers from many walks of life.' %></p>
+  </div>
+</section>
+
+<% if (office.length) { %>
+<section class="section">
+  <div class="wrap">
+    <h2><%= t('office_bearers') %></h2>
+    <div class="people people--big">
+      <% office.forEach(p => { %><%- include('partials/person-card', { p, big: true }) %><% }) %>
+    </div>
+  </div>
+</section>
+<% } %>
+
+<% if (executive.length) { %>
+<section class="section section-alt">
+  <div class="wrap">
+    <h2><%= t('executive_committee') %></h2>
+    <div class="people">
+      <% executive.forEach(p => { %><%- include('partials/person-card', { p }) %><% }) %>
+    </div>
+  </div>
+</section>
+<% } %>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <h2><%= t('all_volunteers') %> <span class="count"><%= volunteers.length %></span></h2>
+    </div>
+    <div class="toolbar">
+      <label class="sr-only" for="team-search"><%= t('search') %></label>
+      <input id="team-search" type="search" placeholder="<%= t('search') %>…" autocomplete="off">
+      <% if (allSkills.length) { %>
+      <label class="sr-only" for="team-skill"><%= t('skills') %></label>
+      <select id="team-skill">
+        <option value=""><%= t('filter_skill') %></option>
+        <% allSkills.forEach(sk => { %><option value="<%= sk.toLowerCase() %>"><%= sk %></option><% }) %>
+      </select>
+      <% } %>
+    </div>
+    <div class="people people--compact" id="volunteer-list">
+      <% volunteers.forEach(p => { %><%- include('partials/person-card', { p }) %><% }) %>
+    </div>
+    <p class="empty" id="team-empty" hidden><%= t('no_items') %></p>
+  </div>
+</section>
+<%- include('partials/footer') %>

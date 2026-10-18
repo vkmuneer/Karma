@@ -1,0 +1,26 @@
+<%- include('partials/header') %>
+<section class="page-head">
+  <div class="wrap">
+    <h1><%= t('join') %></h1>
+    <p class="lede"><%= t('join_intro') %></p>
+  </div>
+</section>
+<section class="section">
+  <div class="wrap narrow">
+    <form class="form card" id="join-form" novalidate>
+      <div class="field"><label for="j-name"><%= t('name') %> *</label><input id="j-name" name="name" required maxlength="100" autocomplete="name"></div>
+      <div class="field"><label for="j-phone"><%= t('phone') %> *</label><input id="j-phone" name="phone" type="tel" required maxlength="20" autocomplete="tel" inputmode="tel"></div>
+      <div class="field-row">
+        <div class="field"><label for="j-place"><%= t('place') %></label><input id="j-place" name="place" maxlength="100"></div>
+        <div class="field"><label for="j-blood"><%= t('blood_group') %></label>
+          <select id="j-blood" name="blood_group"><option value="">—</option><% bloodGroups.forEach(b => { %><option><%= b %></option><% }) %></select></div>
+      </div>
+      <div class="field"><label for="j-skills"><%= t('skills') %></label><input id="j-skills" name="skills" maxlength="500" placeholder="Swimming, First aid, Driving…"></div>
+      <div class="field"><label for="j-msg"><%= t('message') %></label><textarea id="j-msg" name="message" rows="3" maxlength="2000"></textarea></div>
+      <div class="hp" aria-hidden="true"><label for="j-web">Website</label><input id="j-web" name="website" tabindex="-1" autocomplete="off"></div>
+      <button class="btn btn-primary" type="submit"><%= t('submit') %></button>
+      <p class="form-msg" role="status" data-ok="<%= t('join_thanks') %>"></p>
+    </form>
+  </div>
+</section>
+<%- include('partials/footer') %>

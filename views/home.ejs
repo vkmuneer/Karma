@@ -1,0 +1,93 @@
+<%- include('partials/header') %>
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <p class="eyebrow">Omassery · Kozhikode · <%= t('founded') %> <%= h.formatDate(s.founded, lang) %></p>
+      <h1 class="hero-title"><%= lang === 'ml' ? s.tagline_ml : s.tagline_en %></h1>
+      <p class="hero-intro"><%= lang === 'ml' ? s.intro_ml : s.intro_en %></p>
+      <div class="hero-cta">
+        <% if (s.phones && s.phones[0]) { %><a class="btn btn-primary" href="<%= h.telLink(s.phones[0]) %>"><%= t('emergency') %> · <%= s.phones[0] %></a><% } %>
+        <button class="btn btn-ghost js-push" type="button" hidden><%= t('enable_notifications') %></button>
+        <a class="btn btn-ghost" href="/join"><%= t('join') %></a>
+      </div>
+    </div>
+    <div class="hero-art">
+      <% if (s.hero_image) { %>
+        <img class="hero-photo" src="<%= s.hero_image %>" alt="">
+      <% } else { %>
+        <img class="hero-logo" src="/img/logo.png" alt="<%= s.org_name_en %> logo" width="512" height="512">
+      <% } %>
+    </div>
+  </div>
+  <div class="wrap">
+    <dl class="stats">
+      <div><dt><%= t('volunteers') %></dt><dd><%= s.stat_volunteers %></dd></div>
+      <div><dt><%= t('years') %></dt><dd><%= yearsOfService %>+</dd></div>
+      <div><dt><%= t('missions') %></dt><dd><%= missionCount %>+</dd></div>
+      <div><dt><%= t('awards') %></dt><dd><%= s.stat_awards %></dd></div>
+      <div><dt><%= t('equipment') %></dt><dd><%= s.stat_equipment %></dd></div>
+    </dl>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <h2><%= t('recent_missions') %></h2>
+      <a class="link-more" href="/missions"><%= t('view_all') %> →</a>
+    </div>
+    <div class="grid-cards">
+      <% missions.forEach(m => { %><%- include('partials/mission-card', { m }) %><% }) %>
+    </div>
+  </div>
+</section>
+
+<% if (updates.length) { %>
+<section class="section section-alt">
+  <div class="wrap">
+    <div class="section-head">
+      <h2><%= t('latest_updates') %></h2>
+      <a class="link-more" href="/updates"><%= t('view_all') %> →</a>
+    </div>
+    <div class="update-list">
+      <% updates.forEach(u => { %>
+      <a class="ucard" href="/updates/<%= u.id %>">
+        <% if (u.cover) { %><img src="<%= u.cover %>" alt="" loading="lazy"><% } %>
+        <div>
+          <time><%= h.formatDate(u.published_at || u.created_at, lang) %></time>
+          <h3><%= u.title %></h3>
+          <p><%= (u.body || '').slice(0, 140) %><%= (u.body || '').length > 140 ? '…' : '' %></p>
+        </div>
+      </a>
+      <% }) %>
+    </div>
+  </div>
+</section>
+<% } %>
+
+<% if (photos.length) { %>
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <h2><%= t('gallery') %></h2>
+      <a class="link-more" href="/gallery"><%= t('view_all') %> →</a>
+    </div>
+    <div class="photo-grid">
+      <% photos.forEach(p => { %>
+        <button type="button" class="photo js-lightbox" data-src="<%= p.src %>" data-caption="<%= p.caption || '' %>"><img src="<%= p.src %>" alt="<%= p.caption || '' %>" loading="lazy"></button>
+      <% }) %>
+    </div>
+  </div>
+</section>
+<% } %>
+
+<section class="section band">
+  <div class="wrap band-inner">
+    <div>
+      <h2><%= t('support') %></h2>
+      <p><%= lang === 'ml' ? 'പൊതുജനങ്ങളുടെയും പഞ്ചായത്തിന്റെയും പിന്തുണ കൊണ്ടാണ് ഞങ്ങളുടെ ദൗത്യങ്ങൾ മുന്നോട്ടുപോകുന്നത്. ആധുനിക രക്ഷാ ഉപകരണങ്ങൾക്കായി നിങ്ങളുടെ സഹായം വേണം.' : 'Our missions run on the support of the public and the Panchayat. Help us equip our volunteers with modern rescue gear.' %></p>
+    </div>
+    <a class="btn btn-dark" href="/support"><%= t('equipment_needs') %> →</a>
+  </div>
+</section>
+<%- include('partials/footer') %>
