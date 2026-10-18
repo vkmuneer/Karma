@@ -72,7 +72,7 @@ Set the contact email under Settings (or `VAPID_SUBJECT=mailto:you@example.org`)
 | `UPLOAD_DIR` | Override uploads folder (default `$DATA_DIR/uploads`) |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | First admin account (only used when no admin exists) |
 | `VAPID_SUBJECT` | Contact for web push, e.g. `mailto:karma@example.org` |
-| `TRUST_PROXY` | Express trust-proxy setting if behind a non-local proxy |
+| `TRUST_PROXY` | Set to `1` on hosting platforms with a proxy in front (Railway, Render, Fly.io) |
 
 ## Project layout
 
