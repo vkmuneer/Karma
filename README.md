@@ -53,7 +53,7 @@ To reset it later: `npm run reset-admin -- admin 'new-password'`.
 
 ## Deploying
 
-This is a Node.js app with an SQLite database, so it needs a host that runs Node and has a **persistent disk**.
+This is a Node.js (20–26) app with an SQLite database, so it needs a host that runs Node and has a **persistent disk**.
 Static hosts such as GitHub Pages or plain Netlify won't work.
 All data (database + uploaded photos) lives in one folder, set by `DATA_DIR` (default `./data`). Back it up.
 
