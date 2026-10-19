@@ -2,10 +2,10 @@
 
 const ROLES = [
   { key: 'chairman', en: 'Chairman', ml: 'ചെയർമാൻ', group: 'office' },
-  { key: 'vice_chairman', en: 'Vice Chairman', ml: 'വൈസ് ചെയർമാൻ', group: 'office' },
   { key: 'convenor', en: 'Convenor', ml: 'കൺവീനർ', group: 'office' },
-  { key: 'joint_convenor', en: 'Joint Convenor', ml: 'ജോയിന്റ് കൺവീനർ', group: 'office' },
   { key: 'treasurer', en: 'Treasurer', ml: 'ട്രഷറർ', group: 'office' },
+  { key: 'vice_chairman', en: 'Vice Chairman', ml: 'വൈസ് ചെയർമാൻ', group: 'office' },
+  { key: 'joint_convenor', en: 'Joint Convenor', ml: 'ജോയിന്റ് കൺവീനർ', group: 'office' },
   { key: 'executive', en: 'Executive Committee', ml: 'എക്സിക്യൂട്ടീവ് കമ്മിറ്റി', group: 'executive' },
   { key: 'volunteer', en: 'Volunteer', ml: 'വളണ്ടിയർ', group: 'volunteer' },
 ];
@@ -28,6 +28,18 @@ const MISSION_CATEGORIES = [
   { key: 'other', en: 'Other', ml: 'മറ്റുള്ളവ', icon: '⭐' },
 ];
 
+const EVENT_CATEGORIES = [
+  { key: 'training', en: 'Training', ml: 'പരിശീലനം' },
+  { key: 'awareness', en: 'Awareness Class', ml: 'ബോധവൽക്കരണം' },
+  { key: 'drill', en: 'Mock Drill', ml: 'മോക്ക് ഡ്രിൽ' },
+  { key: 'camp', en: 'Camp / Medical Camp', ml: 'ക്യാമ്പ്' },
+  { key: 'meeting', en: 'Meeting', ml: 'യോഗം' },
+  { key: 'felicitation', en: 'Award / Felicitation', ml: 'ആദരവ്' },
+  { key: 'celebration', en: 'Celebration', ml: 'ആഘോഷം' },
+  { key: 'community', en: 'Community Service', ml: 'സാമൂഹിക സേവനം' },
+  { key: 'other', en: 'Other', ml: 'മറ്റുള്ളവ' },
+];
+
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
 
 const STRINGS = {
@@ -35,6 +47,15 @@ const STRINGS = {
   about: { en: 'About', ml: 'ഞങ്ങളെക്കുറിച്ച്' },
   missions: { en: 'Missions', ml: 'ദൗത്യങ്ങൾ' },
   updates: { en: 'Updates', ml: 'വാർത്തകൾ' },
+  events: { en: 'Events', ml: 'പരിപാടികൾ' },
+  upcoming_events: { en: 'Upcoming events', ml: 'വരാനിരിക്കുന്ന പരിപാടികൾ' },
+  past_events: { en: 'Past events', ml: 'കഴിഞ്ഞ പരിപാടികൾ' },
+  recent_events: { en: 'Events', ml: 'പരിപാടികൾ' },
+  time: { en: 'Time', ml: 'സമയം' },
+  venue: { en: 'Venue', ml: 'വേദി' },
+  register: { en: 'Register / More details', ml: 'രജിസ്റ്റർ ചെയ്യുക' },
+  upcoming: { en: 'Upcoming', ml: 'വരാനിരിക്കുന്നു' },
+  photo_count: { en: 'photos', ml: 'ഫോട്ടോകൾ' },
   gallery: { en: 'Gallery', ml: 'ഗാലറി' },
   team: { en: 'Team', ml: 'ടീം' },
   alerts: { en: 'Alerts', ml: 'അറിയിപ്പുകൾ' },
@@ -87,7 +108,8 @@ const STRINGS = {
   follow_us: { en: 'Follow us', ml: 'ഞങ്ങളെ പിന്തുടരുക' },
   registered_trust: { en: 'Registered Charitable Trust', ml: 'രജിസ്റ്റേർഡ് ചാരിറ്റബിൾ ട്രസ്റ്റ്' },
   back: { en: 'Back', ml: 'തിരികെ' },
-  language: { en: 'മലയാളം', ml: 'English' },
+  language: { en: 'മല', ml: 'EN' },
+  language_full: { en: 'മലയാളം', ml: 'English' },
 };
 
 function translator(lang) {
@@ -142,6 +164,20 @@ function categoryInfo(key) {
   return MISSION_CATEGORIES.find((c) => c.key === key) || MISSION_CATEGORIES[MISSION_CATEGORIES.length - 1];
 }
 
+function eventCategoryInfo(key) {
+  return EVENT_CATEGORIES.find((c) => c.key === key) || EVENT_CATEGORIES[EVENT_CATEGORIES.length - 1];
+}
+
+// Today's date in India, as YYYY-MM-DD, for upcoming/past event splits.
+function todayIST() {
+  return new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+function isUpcoming(ev) {
+  const last = ev.end_date || ev.event_date;
+  return Boolean(last) && String(last).slice(0, 10) >= todayIST();
+}
+
 function parseSkills(value) {
   if (Array.isArray(value)) return value;
   try { const v = JSON.parse(value || '[]'); return Array.isArray(v) ? v : []; } catch { return []; }
@@ -166,7 +202,7 @@ function isActiveAlert(a) {
 }
 
 module.exports = {
-  ROLES, SKILLS, MISSION_CATEGORIES, BLOOD_GROUPS, STRINGS,
-  translator, escapeHtml, paragraphs, formatDate, formatINR, roleLabel, categoryInfo,
+  ROLES, SKILLS, MISSION_CATEGORIES, EVENT_CATEGORIES, BLOOD_GROUPS, STRINGS,
+  translator, escapeHtml, paragraphs, formatDate, formatINR, roleLabel, categoryInfo, eventCategoryInfo, todayIST, isUpcoming,
   parseSkills, initials, telLink, whatsappShare, isActiveAlert,
 };

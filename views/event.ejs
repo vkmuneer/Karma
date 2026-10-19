@@ -1,0 +1,40 @@
+<%- include('partials/header') %>
+<% const ec = h.eventCategoryInfo(event.category); const up = h.isUpcoming(event); %>
+<article>
+  <section class="page-head <%= event.cover ? 'page-head--image' : '' %>" <% if (event.cover) { %>style="--cover: url('<%= event.cover %>')"<% } %>>
+    <div class="wrap">
+      <a class="back" href="/events">← <%= t('events') %></a>
+      <div class="meta-row">
+        <span class="tag tag-light"><%= ec[lang] %></span>
+        <% if (up) { %><span class="pill pill-up"><%= t('upcoming') %></span><% } %>
+      </div>
+      <h1><%= event.title %></h1>
+    </div>
+  </section>
+  <section class="section">
+    <div class="wrap detail-grid">
+      <div class="prose">
+        <% if (event.summary) { %><p class="lede-dark"><%= event.summary %></p><% } %>
+        <%- h.paragraphs(event.body) %>
+      </div>
+      <aside class="detail-side">
+        <dl class="facts facts-stack">
+          <% if (event.event_date) { %><div><dt><%= t('date') %></dt><dd><%= h.formatDate(event.event_date, lang) %><%= event.end_date ? ' – ' + h.formatDate(event.end_date, lang) : '' %></dd></div><% } %>
+          <% if (event.event_time) { %><div><dt><%= t('time') %></dt><dd><%= event.event_time %></dd></div><% } %>
+          <% if (event.venue) { %><div><dt><%= t('venue') %></dt><dd><%= event.venue %></dd></div><% } %>
+        </dl>
+        <% if (up && /^https?:\/\//i.test(event.register_link || '')) { %><a class="btn btn-primary" href="<%= event.register_link %>" target="_blank" rel="noopener"><%= t('register') %></a><% } %>
+        <a class="btn btn-whatsapp" target="_blank" rel="noopener" href="<%= h.whatsappShare(event.title + ' — ' + s.org_name_ml + '\n' + [h.formatDate(event.event_date, lang), event.event_time, event.venue].filter(Boolean).join(' · ') + '\n' + (event.summary || '')) %>"><%= t('share_whatsapp') %></a>
+      </aside>
+    </div>
+  </section>
+  <% if (photos.length) { %>
+  <section class="section section-alt">
+    <div class="wrap">
+      <h2><%= t('photos') %> <span class="count"><%= photos.length %></span></h2>
+      <%- include('partials/photo-grid', { photos }) %>
+    </div>
+  </section>
+  <% } %>
+</article>
+<%- include('partials/footer') %>

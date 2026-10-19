@@ -3,11 +3,7 @@
 <section class="section">
   <div class="wrap">
     <% if (!photos.length) { %><p class="empty"><%= t('no_items') %></p><% } %>
-    <div class="photo-grid photo-grid--full">
-      <% photos.forEach(p => { const cap = [p.caption, p.mission_title].filter(Boolean).join(' · '); %>
-        <button type="button" class="photo js-lightbox" data-src="<%= p.src %>" data-caption="<%= cap %>"><img src="<%= p.src %>" alt="<%= p.caption || '' %>" loading="lazy"></button>
-      <% }) %>
-    </div>
+    <%- include('partials/photo-grid', { photos, full: true, captionOf: (p) => [p.caption, p.mission_title || p.event_title].filter(Boolean).join(' · ') }) %>
   </div>
 </section>
 <%- include('partials/footer') %>

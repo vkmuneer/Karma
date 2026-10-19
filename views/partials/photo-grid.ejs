@@ -1,0 +1,5 @@
+<div class="photo-grid <%= typeof full !== 'undefined' && full ? 'photo-grid--full' : '' %>" data-gallery>
+  <% photos.forEach(p => { const cap = typeof captionOf === 'function' ? captionOf(p) : (p.caption || ''); %>
+    <button type="button" class="photo js-lightbox" data-src="<%= p.src %>" data-caption="<%= cap %>"><img src="<%= p.src %>" alt="<%= p.caption || '' %>" loading="lazy"></button>
+  <% }) %>
+</div>

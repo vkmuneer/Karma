@@ -1,6 +1,6 @@
 // Service worker: push notifications + offline fallback for visited pages.
-const CACHE = 'karma-v1';
-const ASSETS = ['/css/style.css?v=1', '/js/common.js?v=1', '/js/site.js?v=1', '/img/logo-160.png', '/img/logo.png'];
+const CACHE = 'karma-v2';
+const ASSETS = ['/css/style.css?v=2', '/js/common.js?v=2', '/js/site.js?v=2', '/img/logo-160.png', '/img/logo.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));

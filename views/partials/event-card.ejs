@@ -1,0 +1,22 @@
+<% const ec = h.eventCategoryInfo(e.category); const d = String(e.event_date || '').match(/^(\d{4})-(\d{2})-(\d{2})/); const up = h.isUpcoming(e); %>
+<a class="ecard <%= up ? 'ecard--upcoming' : '' %>" href="/events/<%= e.id %>">
+  <% if (e.cover) { %><div class="ecard-media"><img src="<%= e.cover %>" alt="" loading="lazy"><% if (e.photo_count > 1) { %><span class="photo-badge"><%= e.photo_count %> <%= t('photo_count') %></span><% } %></div><% } %>
+  <div class="ecard-row">
+    <% if (d) { %>
+    <div class="datechip" aria-hidden="true">
+      <b><%= +d[3] %></b>
+      <span><%= h.formatDate(d[1] + '-' + d[2], lang).split(' ')[0] %></span>
+      <small><%= d[1] %></small>
+    </div>
+    <% } %>
+    <div class="ecard-body">
+      <div class="meta-row">
+        <span class="tag"><%= ec[lang] %></span>
+        <% if (up) { %><span class="pill pill-up"><%= t('upcoming') %></span><% } %>
+      </div>
+      <h3><%= e.title %></h3>
+      <p class="mcard-loc"><%= [h.formatDate(e.event_date, lang) + (e.end_date ? ' – ' + h.formatDate(e.end_date, lang) : ''), e.event_time, e.venue].filter(Boolean).join(' · ') %></p>
+      <% if (e.summary) { %><p class="mcard-sum"><%= e.summary %></p><% } %>
+    </div>
+  </div>
+</a>

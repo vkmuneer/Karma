@@ -3,6 +3,7 @@
   <% if (m.cover) { %>
   <div class="mcard-media">
     <img src="<%= m.cover %>" alt="" loading="lazy">
+    <% if (m.photo_count > 1) { %><span class="photo-badge"><%= m.photo_count %> <%= t('photo_count') %></span><% } %>
     <% if (m.status === 'ongoing') { %><span class="pill pill-live"><%= t('status_ongoing') %></span><% } %>
   </div>
   <% } %>

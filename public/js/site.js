@@ -17,21 +17,51 @@
     });
   }
 
-  // ---------- lightbox ----------
+  // ---------- lightbox (with prev/next for photo sets) ----------
   const box = $('#lightbox');
   if (box) {
     const img = $('img', box);
     const cap = $('.lightbox-caption', box);
-    const close = () => { box.hidden = true; img.src = ''; };
+    const count = $('.lightbox-count', box);
+    const prev = $('.lightbox-prev', box);
+    const next = $('.lightbox-next', box);
+    let set = [];
+    let index = 0;
+    const show = (i) => {
+      index = (i + set.length) % set.length;
+      const item = set[index];
+      img.src = item.dataset.src;
+      cap.textContent = item.dataset.caption || '';
+      count.textContent = set.length > 1 ? `${index + 1} / ${set.length}` : '';
+      prev.hidden = next.hidden = set.length < 2;
+    };
+    const close = () => { box.hidden = true; img.src = ''; document.body.style.overflow = ''; };
     document.addEventListener('click', (e) => {
       const trigger = e.target.closest('.js-lightbox');
       if (!trigger) return;
-      img.src = trigger.dataset.src;
-      cap.textContent = trigger.dataset.caption || '';
+      const group = trigger.closest('[data-gallery]');
+      set = group ? $$('.js-lightbox', group) : [trigger];
+      show(set.indexOf(trigger));
       box.hidden = false;
+      document.body.style.overflow = 'hidden';
     });
-    box.addEventListener('click', (e) => { if (e.target !== img) close(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !box.hidden) close(); });
+    prev.addEventListener('click', (e) => { e.stopPropagation(); show(index - 1); });
+    next.addEventListener('click', (e) => { e.stopPropagation(); show(index + 1); });
+    box.addEventListener('click', (e) => { if (e.target === box || e.target.classList.contains('lightbox-close')) close(); });
+    document.addEventListener('keydown', (e) => {
+      if (box.hidden) return;
+      if (e.key === 'Escape') close();
+      if (e.key === 'ArrowLeft') show(index - 1);
+      if (e.key === 'ArrowRight') show(index + 1);
+    });
+    let startX = null;
+    box.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, { passive: true });
+    box.addEventListener('touchend', (e) => {
+      if (startX === null || set.length < 2) return;
+      const dx = e.changedTouches[0].clientX - startX;
+      if (Math.abs(dx) > 50) show(index + (dx < 0 ? 1 : -1));
+      startX = null;
+    });
   }
 
   // ---------- push buttons ----------

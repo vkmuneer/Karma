@@ -8,7 +8,7 @@ const { db, getSetting, setSetting, allSettings, UPLOAD_DIR } = require('../db')
 const auth = require('../auth');
 const push = require('../push');
 const { readRows, upsertMembers } = require('../importer');
-const { ROLES, MISSION_CATEGORIES, BLOOD_GROUPS, SKILLS, parseSkills, isActiveAlert } = require('../helpers');
+const { ROLES, MISSION_CATEGORIES, EVENT_CATEGORIES, BLOOD_GROUPS, SKILLS, parseSkills, isActiveAlert } = require('../helpers');
 
 const router = express.Router();
 router.use(express.json({ limit: '1mb' }));
@@ -46,6 +46,11 @@ const RESOURCES = {
     fields: { title: 'text', location: 'text', category: 'text', event_date: 'text', end_date: 'text', status: 'text', summary: 'text', body: 'text', cover: 'text', volunteers_count: 'int', featured: 'bool' },
     required: ['title'],
   },
+  events: {
+    order: "COALESCE(NULLIF(event_date, ''), '0000') DESC, id DESC",
+    fields: { title: 'text', category: 'text', event_date: 'text', end_date: 'text', event_time: 'text', venue: 'text', summary: 'text', body: 'text', cover: 'text', register_link: 'text', featured: 'bool' },
+    required: ['title'],
+  },
   updates: {
     order: 'pinned DESC, COALESCE(published_at, created_at) DESC, id DESC',
     fields: { title: 'text', body: 'text', cover: 'text', published_at: 'text', pinned: 'bool' },
@@ -53,7 +58,7 @@ const RESOURCES = {
   },
   photos: {
     order: 'id DESC',
-    fields: { src: 'text', caption: 'text', mission_id: 'int', taken_at: 'text' },
+    fields: { src: 'text', caption: 'text', mission_id: 'int', event_id: 'int', taken_at: 'text' },
     required: ['src'],
     onDelete: (row) => removeUpload(row.src),
   },
@@ -68,7 +73,7 @@ const RESOURCES = {
     required: ['item'],
   },
   members: {
-    order: "CASE role WHEN 'chairman' THEN 1 WHEN 'vice_chairman' THEN 2 WHEN 'convenor' THEN 3 WHEN 'joint_convenor' THEN 4 WHEN 'treasurer' THEN 5 WHEN 'executive' THEN 6 ELSE 7 END, sort_order, name COLLATE NOCASE",
+    order: "CASE role WHEN 'chairman' THEN 1 WHEN 'convenor' THEN 2 WHEN 'treasurer' THEN 3 WHEN 'vice_chairman' THEN 4 WHEN 'joint_convenor' THEN 5 WHEN 'executive' THEN 6 ELSE 7 END, sort_order, name COLLATE NOCASE",
     fields: { name: 'text', role: 'text', designation: 'text', sort_order: 'int', phone: 'text', phone2: 'text', address: 'text', place: 'text', blood_group: 'text', skills: 'skills', occupation: 'text', bio: 'text', photo: 'text', joined_year: 'text', show_public: 'bool', active: 'bool' },
     required: ['name'],
     hidden: ['pin_hash'],
@@ -162,7 +167,7 @@ router.get('/admin/me', (req, res) => {
   if (!req.admin) return res.status(401).json({ error: 'Not logged in' });
   res.json({
     admin: req.admin,
-    meta: { roles: ROLES, categories: MISSION_CATEGORIES, bloodGroups: BLOOD_GROUPS, skills: SKILLS },
+    meta: { roles: ROLES, categories: MISSION_CATEGORIES, eventCategories: EVENT_CATEGORIES, bloodGroups: BLOOD_GROUPS, skills: SKILLS },
   });
 });
 
@@ -224,6 +229,7 @@ router.get('/admin/stats', auth.requireAdmin, (req, res) => {
     membersWithSkills: count("SELECT COUNT(*) n FROM members WHERE active = 1 AND skills NOT IN ('[]', '')"),
     membersWithPhone: count("SELECT COUNT(*) n FROM members WHERE active = 1 AND phone IS NOT NULL AND phone != ''"),
     missions: count('SELECT COUNT(*) n FROM missions'),
+    events: count('SELECT COUNT(*) n FROM events'),
     updates: count('SELECT COUNT(*) n FROM updates'),
     photos: count('SELECT COUNT(*) n FROM photos'),
     activeAlerts: db.prepare('SELECT expires_at FROM alerts').all().filter(isActiveAlert).length,

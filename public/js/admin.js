@@ -39,6 +39,7 @@
   };
   const roleName = (key) => (META.roles.find((r) => r.key === key) || { en: key }).en;
   const catName = (key) => (META.categories.find((c) => c.key === key) || { en: key }).en;
+  const evCatName = (key) => (META.eventCategories.find((c) => c.key === key) || { en: key }).en;
   const telDigits = (p) => String(p || '').replace(/\D/g, '').replace(/^(\d{10})$/, '91$1');
 
   // ---------- resource schemas ----------
@@ -76,7 +77,7 @@
     },
     missions: {
       title: 'Missions', singular: 'mission',
-      help: 'Rescue operations shown on the Missions page. Dates can be a full date (2024-07-30), a month (2024-07) or just a year (2019). Save the mission first, then add photos.',
+      help: 'Rescue operations shown on the Missions page. Dates can be a full date (2024-07-30), a month (2024-07) or just a year (2019). Add as many photos as you like; if no cover photo is chosen, the first photo is used.',
       fields: () => [
         { name: 'title', label: 'Title', required: true },
         { name: 'location', label: 'Location' },
@@ -91,7 +92,29 @@
         { name: 'featured', label: 'Show on home page first', type: 'checkbox' },
       ],
       row: (m) => ({ thumb: m.cover, glyph: (META.categories.find((c) => c.key === m.category) || {}).icon, title: m.title, sub: [m.event_date, m.location].filter(Boolean).join(' · '), badges: [[catName(m.category), ''], m.status === 'ongoing' && ['LIVE', 'b-crit'], m.featured && ['featured', 'b-signal']] }),
-      extra: (row) => row && missionPhotos(row),
+      extra: (row) => linkedPhotos('mission_id', row),
+    },
+    events: {
+      title: 'Events', singular: 'event',
+      help: 'Trainings, awareness classes, mock drills, camps, meetings and felicitations. Events with a future date appear under "Upcoming" on the website and move to "Past events" automatically. Add as many photos as you like.',
+      fields: () => [
+        { name: 'title', label: 'Title', required: true },
+        { name: 'category', label: 'Type', type: 'select', options: META.eventCategories.map((c) => [c.key, c.en + ' · ' + c.ml]), default: 'training' },
+        { name: 'event_date', label: 'Date', type: 'date', half: true, required: true },
+        { name: 'end_date', label: 'End date (multi-day events)', type: 'date', half: true },
+        { name: 'event_time', label: 'Time', placeholder: 'e.g. 10:00 AM – 1:00 PM', half: true },
+        { name: 'venue', label: 'Venue', half: true },
+        { name: 'summary', label: 'Short summary (shown on cards)', type: 'textarea', rows: 2 },
+        { name: 'body', label: 'Details / report', type: 'textarea', rows: 8 },
+        { name: 'cover', label: 'Cover photo (optional)', type: 'image' },
+        { name: 'register_link', label: 'Registration / Google Form link (optional)', type: 'url', placeholder: 'https://…' },
+        { name: 'featured', label: 'Highlight on home page', type: 'checkbox' },
+      ],
+      row: (e) => {
+        const upcoming = (e.end_date || e.event_date || '') >= new Date().toISOString().slice(0, 10);
+        return { thumb: e.cover, glyph: '📅', title: e.title, sub: [e.event_date, e.venue].filter(Boolean).join(' · '), badges: [[evCatName(e.category), ''], upcoming && ['upcoming', 'b-signal'], e.featured && ['featured', 'b-ink']] };
+      },
+      extra: (row) => linkedPhotos('event_id', row),
     },
     updates: {
       title: 'News & Updates', singular: 'update',
@@ -303,6 +326,7 @@
         const saved = row
           ? await api(`/api/admin/r/${resource}/${row.id}`, { method: 'PUT', body })
           : await api(`/api/admin/r/${resource}`, { method: 'POST', body });
+        if (extra && extra.attach) await extra.attach(saved);
         toast('Saved');
         if (schema.afterSave) await schema.afterSave(saved, values, !row);
         render();
@@ -320,19 +344,36 @@
       }) : null]);
   }
 
-  // ---------- mission photos ----------
-  function missionPhotos(mission) {
+  // ---------- photos linked to a mission or event ----------
+  // On a new item, uploads are queued and attached right after the first save.
+  function linkedPhotos(key, row) {
     const grid = el('div', { class: 'thumbs' });
+    const queued = [];
+    const thumb = (src, caption, onCaption, onDelete) => {
+      const cap = el('input', { class: 'thumb-cap', placeholder: 'Caption', value: caption || '', 'aria-label': 'Photo caption' });
+      cap.addEventListener('change', () => onCaption(cap.value));
+      return el('div', { class: 'thumb-wrap' },
+        el('div', { class: 'thumb' }, el('img', { src, alt: '' }), el('button', { type: 'button', 'aria-label': 'Delete photo', onclick: onDelete }, '×')), cap);
+    };
+    const paintQueued = () => queued.map((q, i) => thumb(q.src, q.caption, (v) => { q.caption = v; }, () => { queued.splice(i, 1); load(); }));
     const load = async () => {
-      const photos = (await api('/api/admin/r/photos')).filter((p) => p.mission_id === mission.id);
-      grid.replaceChildren(...photos.map((p) => el('div', { class: 'thumb' }, el('img', { src: p.src, alt: '' }),
-        el('button', { type: 'button', 'aria-label': 'Delete photo', onclick: async () => { await api(`/api/admin/r/photos/${p.id}`, { method: 'DELETE' }); load(); } }, '×'))));
+      const saved = row ? (await api('/api/admin/r/photos')).filter((p) => p[key] === row.id).reverse() : [];
+      grid.replaceChildren(...saved.map((p) => thumb(p.src, p.caption,
+        async (v) => { try { await api(`/api/admin/r/photos/${p.id}`, { method: 'PUT', body: { caption: v } }); toast('Caption saved'); } catch (err) { fail(err); } },
+        async () => { await api(`/api/admin/r/photos/${p.id}`, { method: 'DELETE' }); load(); })), ...paintQueued());
+      title.textContent = `Photos (${saved.length + queued.length})`;
+    };
+    const title = el('strong', {}, 'Photos');
+    const box = el('div', { class: 'group-box' },
+      el('div', { class: 'group-box-head' }, title),
+      el('p', { class: 'help' }, 'Select several photos at once. They are shown as a gallery on the website. Tap a caption box to add a caption.'),
+      uploadZone((url) => (row ? api('/api/admin/r/photos', { method: 'POST', body: { src: url, [key]: row.id } }) : queued.push({ src: url, caption: '' })), load),
+      grid);
+    box.attach = async (saved) => {
+      for (const q of queued.splice(0)) await api('/api/admin/r/photos', { method: 'POST', body: { src: q.src, caption: q.caption, [key]: saved.id } });
     };
     load().catch(fail);
-    return el('div', { class: 'group-box' },
-      el('div', { class: 'group-box-head' }, el('strong', {}, 'Mission photos')),
-      uploadZone((url) => api('/api/admin/r/photos', { method: 'POST', body: { src: url, mission_id: mission.id } }), load),
-      grid);
+    return box;
   }
 
   function uploadZone(onUploaded, done) {
@@ -436,36 +477,54 @@
   }
 
   // ---------- gallery ----------
+  // A photo links to one mission or one event; the select uses values like "mission_id:3" / "event_id:5".
+  function linkOptions(missions, events) {
+    return [
+      el('option', { value: '' }, 'Not linked'),
+      el('optgroup', { label: 'Missions' }, missions.map((m) => el('option', { value: 'mission_id:' + m.id }, m.title))),
+      el('optgroup', { label: 'Events' }, events.map((e) => el('option', { value: 'event_id:' + e.id }, [e.event_date, e.title].filter(Boolean).join(' · ')))),
+    ];
+  }
+  function linkFromValue(v) {
+    const [key, id] = String(v || '').split(':');
+    return { mission_id: key === 'mission_id' ? +id : null, event_id: key === 'event_id' ? +id : null };
+  }
+  const linkValue = (p) => (p.mission_id ? 'mission_id:' + p.mission_id : p.event_id ? 'event_id:' + p.event_id : '');
+
   async function galleryView() {
-    const [photos, missions] = await Promise.all([api('/api/admin/r/photos'), api('/api/admin/r/missions')]);
-    const missionSel = el('select', { id: 'g-mission' }, el('option', { value: '' }, 'Not linked to a mission'), missions.map((m) => el('option', { value: m.id }, m.title)));
+    const [photos, missions, events] = await Promise.all([api('/api/admin/r/photos'), api('/api/admin/r/missions'), api('/api/admin/r/events')]);
+    const linkSel = el('select', { id: 'g-link' }, linkOptions(missions, events));
     const captionIn = el('input', { id: 'g-caption', placeholder: 'Caption for these photos (optional)' });
+    const nameOf = (p) => (p.mission_id ? (missions.find((m) => m.id === p.mission_id) || {}).title : p.event_id ? (events.find((e) => e.id === p.event_id) || {}).title : '');
     const grid = el('div', { class: 'thumbs' }, photos.map((p) => {
-      const t = el('div', { class: 'thumb' }, el('img', { src: p.src, alt: '', loading: 'lazy' }), p.caption ? el('div', { class: 'cap' }, p.caption) : null);
+      const label = [p.caption, nameOf(p)].filter(Boolean).join(' · ');
+      const t = el('div', { class: 'thumb' }, el('img', { src: p.src, alt: '', loading: 'lazy' }), label ? el('div', { class: 'cap' }, label) : null);
       t.style.cursor = 'pointer';
-      t.addEventListener('click', () => editPhoto(p, missions));
+      t.addEventListener('click', () => editPhoto(p, missions, events));
       return t;
     }));
     return [
       el('div', { class: 'view-head' }, el('h1', {}, 'Photo Gallery')),
-      el('p', { class: 'help' }, 'Photos are resized on your phone before upload. Link them to a mission to show them on that mission\'s page too. Tap a photo to edit its caption or delete it.'),
+      el('p', { class: 'help' }, 'Select many photos at once; they are resized on your phone before upload. Link them to a mission or an event to show them on that page too. Tap a photo to edit its caption, change the link or delete it.'),
       el('div', { class: 'group-box' },
-        el('div', { class: 'field-row' }, el('div', { class: 'field' }, el('label', { for: 'g-caption' }, 'Caption'), captionIn), el('div', { class: 'field' }, el('label', { for: 'g-mission' }, 'Mission'), missionSel)),
-        uploadZone((url) => api('/api/admin/r/photos', { method: 'POST', body: { src: url, caption: captionIn.value, mission_id: missionSel.value || null } }), render)),
+        el('div', { class: 'field-row' }, el('div', { class: 'field' }, el('label', { for: 'g-caption' }, 'Caption'), captionIn), el('div', { class: 'field' }, el('label', { for: 'g-link' }, 'Mission or event'), linkSel)),
+        uploadZone((url) => api('/api/admin/r/photos', { method: 'POST', body: { src: url, caption: captionIn.value, ...linkFromValue(linkSel.value) } }), render)),
       el('h2', { style: 'margin-top:24px' }, `${photos.length} photos`),
       grid,
     ];
   }
 
-  function editPhoto(photo, missions) {
+  function editPhoto(photo, missions, events) {
     const form = buildForm([
       { name: 'caption', label: 'Caption' },
-      { name: 'mission_id', label: 'Mission', type: 'select', options: [['', 'Not linked']].concat(missions.map((m) => [String(m.id), m.title])) },
       { name: 'taken_at', label: 'Date taken', type: 'date' },
-    ], { ...photo, mission_id: photo.mission_id ? String(photo.mission_id) : '' });
-    openSheet('Edit photo', el('div', { class: 'form' }, el('img', { src: photo.src, alt: '', style: 'border-radius:10px' }), form.nodes), [
+    ], photo);
+    const linkSel = el('select', { id: 'p-link' }, linkOptions(missions, events));
+    linkSel.value = linkValue(photo);
+    openSheet('Edit photo', el('div', { class: 'form' }, el('img', { src: photo.src, alt: '', style: 'border-radius:10px' }), form.nodes,
+      el('div', { class: 'field' }, el('label', { for: 'p-link' }, 'Mission or event'), linkSel)), [
       el('button', { class: 'btn btn-primary', type: 'button', onclick: async () => {
-        try { await api(`/api/admin/r/photos/${photo.id}`, { method: 'PUT', body: form.read() }); toast('Saved'); closeSheet(); render(); } catch (err) { fail(err); }
+        try { await api(`/api/admin/r/photos/${photo.id}`, { method: 'PUT', body: { ...form.read(), ...linkFromValue(linkSel.value) } }); toast('Saved'); closeSheet(); render(); } catch (err) { fail(err); }
       } }, 'Save'),
       confirmButton('Delete', async () => { try { await api(`/api/admin/r/photos/${photo.id}`, { method: 'DELETE' }); closeSheet(); render(); } catch (err) { fail(err); } }),
     ]);
@@ -488,10 +547,12 @@
         el('button', { class: 'btn btn-primary', type: 'button', onclick: () => { go('alerts'); setTimeout(() => editItem('alerts', null), 50); } }, '🚨 Send an alert'),
         el('button', { class: 'btn btn-outline', type: 'button', onclick: () => { go('updates'); setTimeout(() => editItem('updates', null), 50); } }, 'Post an update'),
         el('button', { class: 'btn btn-outline', type: 'button', onclick: () => { go('missions'); setTimeout(() => editItem('missions', null), 50); } }, 'Add a mission'),
+        el('button', { class: 'btn btn-outline', type: 'button', onclick: () => { go('events'); setTimeout(() => editItem('events', null), 50); } }, 'Add an event'),
         el('button', { class: 'btn btn-outline', type: 'button', onclick: () => go('photos') }, 'Upload photos')),
       el('div', { class: 'dash-grid' },
         tile(s.members, 'active members', 'members'),
         tile(s.missions, 'missions', 'missions'),
+        tile(s.events, 'events', 'events'),
         tile(s.updates, 'updates', 'updates'),
         tile(s.photos, 'photos', 'photos'),
         tile(s.activeAlerts, 'active alerts', 'alerts'),
@@ -603,6 +664,7 @@
     ['dashboard', 'Dashboard', dashboardView],
     ['alerts', 'Alerts', () => resourceView('alerts')],
     ['missions', 'Missions', () => resourceView('missions')],
+    ['events', 'Events', () => resourceView('events')],
     ['updates', 'Updates', () => resourceView('updates')],
     ['photos', 'Gallery', galleryView],
     ['members', 'Members', () => resourceView('members')],

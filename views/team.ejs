@@ -10,9 +10,17 @@
 <section class="section">
   <div class="wrap">
     <h2><%= t('office_bearers') %></h2>
-    <div class="people people--big">
-      <% office.forEach(p => { %><%- include('partials/person-card', { p, big: true }) %><% }) %>
+    <% const top = office.filter(p => ['chairman', 'convenor', 'treasurer'].includes(p.role)); const rest = office.filter(p => !top.includes(p)); %>
+    <% if (top.length) { %>
+    <div class="people people--big people--top">
+      <% top.forEach(p => { %><%- include('partials/person-card', { p, big: true }) %><% }) %>
     </div>
+    <% } %>
+    <% if (rest.length) { %>
+    <div class="people people--big <%= top.length ? 'people--after' : '' %>">
+      <% rest.forEach(p => { %><%- include('partials/person-card', { p, big: true }) %><% }) %>
+    </div>
+    <% } %>
   </div>
 </section>
 <% } %>

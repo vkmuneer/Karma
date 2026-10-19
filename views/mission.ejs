@@ -30,12 +30,8 @@
   <% if (photos.length) { %>
   <section class="section section-alt">
     <div class="wrap">
-      <h2><%= t('photos') %></h2>
-      <div class="photo-grid">
-        <% photos.forEach(p => { %>
-          <button type="button" class="photo js-lightbox" data-src="<%= p.src %>" data-caption="<%= p.caption || '' %>"><img src="<%= p.src %>" alt="<%= p.caption || '' %>" loading="lazy"></button>
-        <% }) %>
-      </div>
+      <h2><%= t('photos') %> <span class="count"><%= photos.length %></span></h2>
+      <%- include('partials/photo-grid', { photos }) %>
     </div>
   </section>
   <% } %>

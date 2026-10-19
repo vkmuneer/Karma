@@ -42,8 +42,22 @@
   </div>
 </section>
 
-<% if (updates.length) { %>
+<% if (upcomingEvents.length || recentEvents.length) { %>
 <section class="section section-alt">
+  <div class="wrap">
+    <div class="section-head">
+      <h2><%= upcomingEvents.length ? t('upcoming_events') : t('recent_events') %></h2>
+      <a class="link-more" href="/events"><%= t('view_all') %> →</a>
+    </div>
+    <div class="grid-cards">
+      <% (upcomingEvents.length ? upcomingEvents : recentEvents).forEach(e => { %><%- include('partials/event-card', { e }) %><% }) %>
+    </div>
+  </div>
+</section>
+<% } %>
+
+<% if (updates.length) { %>
+<section class="section">
   <div class="wrap">
     <div class="section-head">
       <h2><%= t('latest_updates') %></h2>
@@ -66,17 +80,13 @@
 <% } %>
 
 <% if (photos.length) { %>
-<section class="section">
+<section class="section section-alt">
   <div class="wrap">
     <div class="section-head">
       <h2><%= t('gallery') %></h2>
       <a class="link-more" href="/gallery"><%= t('view_all') %> →</a>
     </div>
-    <div class="photo-grid">
-      <% photos.forEach(p => { %>
-        <button type="button" class="photo js-lightbox" data-src="<%= p.src %>" data-caption="<%= p.caption || '' %>"><img src="<%= p.src %>" alt="<%= p.caption || '' %>" loading="lazy"></button>
-      <% }) %>
-    </div>
+    <%- include('partials/photo-grid', { photos }) %>
   </div>
 </section>
 <% } %>

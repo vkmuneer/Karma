@@ -70,6 +70,22 @@ CREATE TABLE IF NOT EXISTS missions (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  category TEXT DEFAULT 'other',
+  event_date TEXT,              -- YYYY-MM-DD
+  end_date TEXT,
+  event_time TEXT,              -- free text, e.g. "10:00 AM – 1:00 PM"
+  venue TEXT,
+  summary TEXT,
+  body TEXT,
+  cover TEXT,
+  register_link TEXT,
+  featured INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS updates (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   title TEXT NOT NULL,
@@ -129,6 +145,13 @@ CREATE TABLE IF NOT EXISTS push_subs (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 `);
+
+// Columns added after the first release; existing databases get them on startup.
+function addColumn(table, column, definition) {
+  const exists = db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column);
+  if (!exists) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
+addColumn('photos', 'event_id', 'INTEGER REFERENCES events(id) ON DELETE SET NULL');
 
 function getSetting(key, fallback = null) {
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
