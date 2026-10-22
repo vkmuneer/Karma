@@ -6,8 +6,27 @@
   </div>
 </section>
 
+<section class="section team-filter-bar">
+  <div class="wrap">
+    <div class="toolbar">
+      <label class="sr-only" for="team-search"><%= t('search') %></label>
+      <input id="team-search" type="search" placeholder="<%= lang === 'ml' ? 'പേര്, സ്ഥലം, കഴിവ് എന്നിവ തിരയുക…' : 'Search name, place or skill…' %>" autocomplete="off">
+      <% if (allSkills.length) { %>
+      <label class="sr-only" for="team-skill"><%= t('skills') %></label>
+      <select id="team-skill">
+        <option value=""><%= t('filter_skill') %> (<%= total %>)</option>
+        <% allSkills.forEach(sk => { %><option value="<%= sk.key %>"><%= sk.name %> (<%= sk.count %>)</option><% }) %>
+      </select>
+      <% } %>
+      <button type="button" class="btn btn-outline btn-clear" id="team-clear" hidden><%= lang === 'ml' ? 'ഫിൽട്ടർ മാറ്റുക' : 'Clear' %></button>
+    </div>
+    <p class="filter-result" id="team-result" role="status" hidden data-one="<%= lang === 'ml' ? '1 പേരെ കണ്ടെത്തി' : '1 person found' %>" data-many="<%= lang === 'ml' ? '{n} പേരെ കണ്ടെത്തി' : '{n} people found' %>"></p>
+    <p class="empty" id="team-empty" hidden><%= lang === 'ml' ? 'ഈ തിരച്ചിലിന് ആരെയും കണ്ടെത്തിയില്ല.' : 'Nobody matches this search.' %></p>
+  </div>
+</section>
+
 <% if (office.length) { %>
-<section class="section">
+<section class="section team-group">
   <div class="wrap">
     <h2><%= t('office_bearers') %></h2>
     <% const top = office.filter(p => ['chairman', 'convenor', 'treasurer'].includes(p.role)); const rest = office.filter(p => !top.includes(p)); %>
@@ -26,7 +45,7 @@
 <% } %>
 
 <% if (executive.length) { %>
-<section class="section section-alt">
+<section class="section section-alt team-group">
   <div class="wrap">
     <h2><%= t('executive_committee') %></h2>
     <div class="people">
@@ -36,26 +55,16 @@
 </section>
 <% } %>
 
-<section class="section">
+<% if (volunteers.length) { %>
+<section class="section team-group">
   <div class="wrap">
     <div class="section-head">
-      <h2><%= t('all_volunteers') %> <span class="count"><%= volunteers.length %></span></h2>
-    </div>
-    <div class="toolbar">
-      <label class="sr-only" for="team-search"><%= t('search') %></label>
-      <input id="team-search" type="search" placeholder="<%= t('search') %>…" autocomplete="off">
-      <% if (allSkills.length) { %>
-      <label class="sr-only" for="team-skill"><%= t('skills') %></label>
-      <select id="team-skill">
-        <option value=""><%= t('filter_skill') %></option>
-        <% allSkills.forEach(sk => { %><option value="<%= sk.toLowerCase() %>"><%= sk %></option><% }) %>
-      </select>
-      <% } %>
+      <h2><%= t('all_volunteers') %> <span class="count" data-group-count><%= volunteers.length %></span></h2>
     </div>
     <div class="people people--compact" id="volunteer-list">
       <% volunteers.forEach(p => { %><%- include('partials/person-card', { p }) %><% }) %>
     </div>
-    <p class="empty" id="team-empty" hidden><%= t('no_items') %></p>
   </div>
 </section>
+<% } %>
 <%- include('partials/footer') %>

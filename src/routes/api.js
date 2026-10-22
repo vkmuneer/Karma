@@ -8,7 +8,8 @@ const { db, getSetting, setSetting, allSettings, UPLOAD_DIR } = require('../db')
 const auth = require('../auth');
 const push = require('../push');
 const { readRows, upsertMembers } = require('../importer');
-const { ROLES, MISSION_CATEGORIES, EVENT_CATEGORIES, BLOOD_GROUPS, SKILLS, parseSkills, isActiveAlert } = require('../helpers');
+const skills = require('../skills');
+const { ROLES, MISSION_CATEGORIES, EVENT_CATEGORIES, BLOOD_GROUPS, parseSkills, isActiveAlert } = require('../helpers');
 
 const router = express.Router();
 router.use(express.json({ limit: '1mb' }));
@@ -89,7 +90,7 @@ function clean(type, value) {
   if (value === undefined) return undefined;
   if (type === 'int') return value === '' || value === null ? null : (Number.isFinite(+value) ? Math.round(+value) : null);
   if (type === 'bool') return value === true || value === 1 || value === '1' || value === 'on' || value === 'true' ? 1 : 0;
-  if (type === 'skills') return JSON.stringify((Array.isArray(value) ? value : String(value).split(',')).map((s) => String(s).trim()).filter(Boolean).slice(0, 30));
+  if (type === 'skills') return JSON.stringify(skills.canonicalize(Array.isArray(value) ? value : String(value).split(',')));
   return value === null ? null : String(value).slice(0, 20000);
 }
 
@@ -167,7 +168,7 @@ router.get('/admin/me', (req, res) => {
   if (!req.admin) return res.status(401).json({ error: 'Not logged in' });
   res.json({
     admin: req.admin,
-    meta: { roles: ROLES, categories: MISSION_CATEGORIES, eventCategories: EVENT_CATEGORIES, bloodGroups: BLOOD_GROUPS, skills: SKILLS },
+    meta: { roles: ROLES, categories: MISSION_CATEGORIES, eventCategories: EVENT_CATEGORIES, bloodGroups: BLOOD_GROUPS, skills: skills.skillList() },
   });
 });
 
@@ -274,6 +275,37 @@ router.post('/admin/members/import', auth.requireAdmin, sheetUpload.single('file
   }
 });
 
+// ---------- admin: skill list ----------
+router.get('/admin/skills', auth.requireAdmin, (req, res) => {
+  const used = skills.usage();
+  const list = skills.skillList().map((name) => {
+    const u = used.get(skills.skillKey(name));
+    used.delete(skills.skillKey(name));
+    return { name, count: u ? u.count : 0, listed: true };
+  });
+  const extra = [...used.values()].map((u) => ({ name: u.name, count: u.count, listed: false }));
+  res.json({ skills: list.concat(extra) });
+});
+
+router.post('/admin/skills', auth.requireAdmin, (req, res) => {
+  const name = String((req.body && req.body.name) || '').trim();
+  if (!name) return res.status(400).json({ error: 'Type a skill name' });
+  skills.saveList(skills.skillList().concat(name.split(',')));
+  res.json({ ok: true });
+});
+
+router.post('/admin/skills/rename', auth.requireAdmin, (req, res) => {
+  const { from, to } = req.body || {};
+  if (!from || !String(to || '').trim()) return res.status(400).json({ error: 'Type the new name' });
+  res.json({ ok: true, membersUpdated: skills.rename(from, to) });
+});
+
+router.post('/admin/skills/remove', auth.requireAdmin, (req, res) => {
+  const { name, fromMembers } = req.body || {};
+  if (!name) return res.status(400).json({ error: 'Missing skill' });
+  res.json({ ok: true, membersUpdated: skills.remove(name, Boolean(fromMembers)) });
+});
+
 // ---------- member portal ----------
 const last10 = (p) => String(p || '').replace(/\D/g, '').slice(-10);
 const PUBLIC_MEMBER_FIELDS = 'id, name, role, designation, phone, phone2, place, blood_group, skills, occupation, photo';
@@ -299,7 +331,7 @@ router.get('/member/me', auth.requireMember, (req, res) => {
   const m = { ...req.member };
   delete m.pin_hash;
   m.skills = parseSkills(m.skills);
-  res.json({ member: m, skills: SKILLS, bloodGroups: BLOOD_GROUPS });
+  res.json({ member: m, skills: skills.skillList(), bloodGroups: BLOOD_GROUPS });
 });
 
 router.put('/member/me', auth.requireMember, (req, res) => {

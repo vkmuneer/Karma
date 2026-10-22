@@ -1,6 +1,7 @@
 const express = require('express');
 const { db, allSettings } = require('../db');
 const h = require('../helpers');
+const skills = require('../skills');
 
 const router = express.Router();
 
@@ -112,7 +113,13 @@ router.get('/team', (req, res) => {
   const members = db.prepare(`SELECT ${PUBLIC_MEMBER_FIELDS} FROM members WHERE active = 1 AND show_public = 1 ORDER BY ${ROLE_ORDER}`).all()
     .map((m) => ({ ...m, skills: h.parseSkills(m.skills) }));
   const groupOf = (m) => (h.ROLES.find((r) => r.key === m.role) || { group: 'volunteer' }).group;
-  const allSkills = [...new Set(members.flatMap((m) => m.skills))].sort();
+  // Filter options: each skill in use once (case-insensitive), with how many people have it.
+  const counts = new Map();
+  for (const sk of members.flatMap((m) => m.skills)) {
+    const k = skills.skillKey(sk);
+    counts.set(k, { name: (counts.get(k) || {}).name || sk, count: ((counts.get(k) || {}).count || 0) + 1 });
+  }
+  const allSkills = [...counts.entries()].map(([k, v]) => ({ key: k, ...v })).sort((a, b) => a.name.localeCompare(b.name));
   res.locals.pageTitle = res.locals.t('team');
   res.render('team', {
     office: members.filter((m) => groupOf(m) === 'office'),
@@ -154,7 +161,9 @@ router.get('/member', (req, res) => {
   const alerts = db.prepare('SELECT * FROM alerts ORDER BY id DESC LIMIT 30').all();
   const me = { ...req.member, skills: h.parseSkills(req.member.skills) };
   delete me.pin_hash;
-  res.render('member', { directory, alerts, me, skillOptions: h.SKILLS, bloodGroups: h.BLOOD_GROUPS });
+  const dirSkills = [...new Map(directory.flatMap((d) => d.skills).map((sk) => [skills.skillKey(sk), sk])).entries()]
+    .map(([k, name]) => ({ key: k, name })).sort((a, b) => a.name.localeCompare(b.name));
+  res.render('member', { directory, alerts, me, skillOptions: skills.skillList(), dirSkills, bloodGroups: h.BLOOD_GROUPS });
 });
 
 router.get('/admin', (req, res) => {

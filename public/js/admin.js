@@ -142,7 +142,7 @@
         { name: 'blood_group', label: 'Blood group', type: 'select', options: [['', '—']].concat(META.bloodGroups.map((b) => [b, b])), half: true },
         { name: 'occupation', label: 'Occupation', half: true },
         { name: 'joined_year', label: 'Joined (year)', half: true },
-        { name: 'skills', label: 'Skills', type: 'tags', suggestions: () => META.skills },
+        { name: 'skills', label: 'Skills', type: 'tags', suggestions: () => META.skills, hint: 'Tap a suggestion, or type any new skill and tap Add. Manage the suggestion list under Skills.' },
         { name: 'bio', label: 'Short bio', type: 'textarea', rows: 3 },
         { name: 'address', label: 'Address (private)', type: 'textarea', rows: 2 },
         { name: 'sort_order', label: 'Order within role (lower first)', type: 'number', default: 100, half: true },
@@ -151,8 +151,22 @@
       ],
       row: (m) => ({ thumb: m.photo, initials: m.name, title: m.name, sub: [m.place, m.phone, (m.skills || []).join(', ')].filter(Boolean).join(' · '), badges: [m.role !== 'volunteer' && [roleName(m.role), 'b-ink'], m.blood_group && [m.blood_group, ''], !m.active && ['inactive', 'b-warn'], m.has_pin && ['PIN', 'b-ok']] }),
       search: (m) => [m.name, m.place, m.phone, m.blood_group, (m.skills || []).join(' '), roleName(m.role)].join(' '),
-      filters: () => [['', 'All roles']].concat(META.roles.map((r) => [r.key, r.en])),
-      filterBy: (m, f) => !f || m.role === f,
+      filters: (rows) => {
+        const used = new Map();
+        rows.forEach((m) => (m.skills || []).forEach((sk) => {
+          const entry = used.get(sk.toLowerCase()) || { name: sk, n: 0 };
+          entry.n++;
+          used.set(sk.toLowerCase(), entry);
+        }));
+        return [['', 'All members'],
+          { group: 'Role', options: META.roles.map((r) => ['role:' + r.key, r.en]) },
+          { group: 'Skill', options: [...used.entries()].sort((a, b) => a[1].name.localeCompare(b[1].name)).map(([k, v]) => ['skill:' + k, `${v.name} (${v.n})`]) }];
+      },
+      filterBy: (m, f) => {
+        if (!f) return true;
+        const [kind, val] = [f.slice(0, f.indexOf(':')), f.slice(f.indexOf(':') + 1)];
+        return kind === 'role' ? m.role === val : (m.skills || []).some((sk) => sk.toLowerCase() === val);
+      },
       extra: (row) => row && memberPin(row),
       headActions: () => [el('button', { class: 'btn btn-outline btn-sm', type: 'button', onclick: importMembers }, 'Import from Excel')],
     },
@@ -227,21 +241,35 @@
     }
     if (f.type === 'tags') {
       let tags = Array.isArray(value) ? [...value] : [];
-      const input = el('input', { id, placeholder: 'Type and press Enter', autocomplete: 'off' });
+      const input = el('input', { id, placeholder: 'Type a skill, then tap Add', autocomplete: 'off', enterkeyhint: 'done' });
+      const addBtn = el('button', { type: 'button', class: 'btn btn-outline btn-sm tag-add' }, 'Add');
       const box = el('div', { class: 'tags-input' });
       const suggest = el('div', { class: 'suggest' });
-      const add = (t) => { t = t.trim(); if (t && !tags.some((x) => x.toLowerCase() === t.toLowerCase())) tags.push(t); paint(); };
+      const add = (t) => {
+        for (const part of String(t).split(',')) {
+          const v = part.trim().replace(/\s+/g, ' ');
+          if (!v || tags.some((x) => x.toLowerCase() === v.toLowerCase())) continue;
+          // Use the skill list's spelling when it matches ("swimming" → "Swimming").
+          tags.push(f.suggestions().find((sug) => sug.toLowerCase() === v.toLowerCase()) || v);
+        }
+        paint();
+      };
       const paint = () => {
-        box.replaceChildren(...tags.map((t) => el('span', { class: 't' }, t, el('button', { type: 'button', 'aria-label': 'Remove ' + t, onclick: () => { tags = tags.filter((x) => x !== t); paint(); } }, '×'))), input);
-        suggest.replaceChildren(...f.suggestions().filter((s) => !tags.includes(s)).map((s) => el('button', { type: 'button', onclick: () => add(s) }, '+ ' + s)));
+        box.replaceChildren(...tags.map((t) => el('span', { class: 't' }, t, el('button', { type: 'button', 'aria-label': 'Remove ' + t, onclick: () => { tags = tags.filter((x) => x !== t); paint(); } }, '×'))), input, addBtn);
+        const have = new Set(tags.map((t) => t.toLowerCase()));
+        suggest.replaceChildren(...f.suggestions().filter((sug) => !have.has(sug.toLowerCase())).map((sug) => el('button', { type: 'button', onclick: () => add(sug) }, '+ ' + sug)));
       };
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add(input.value); input.value = ''; input.focus(); }
         if (e.key === 'Backspace' && !input.value && tags.length) { tags.pop(); paint(); input.focus(); }
       });
-      input.addEventListener('blur', () => { if (input.value) { add(input.value); input.value = ''; } });
+      // Phone keyboards often send no Enter/comma key events, so also react to typed commas and the Add button.
+      input.addEventListener('input', () => { if (input.value.includes(',')) { add(input.value); input.value = ''; input.focus(); } });
+      addBtn.addEventListener('click', () => { add(input.value); input.value = ''; input.focus(); });
+      input.addEventListener('blur', (e) => { if (input.value && e.relatedTarget !== addBtn) { add(input.value); input.value = ''; } });
       paint();
-      return { node: el('div', { class: 'field' }, el('label', { for: id }, f.label), box, suggest), get: () => tags };
+      const hint = f.hint ? el('p', { class: 'help', style: 'margin:4px 0 0' }, f.hint) : null;
+      return { node: el('div', { class: 'field' }, el('label', { for: id }, f.label), box, suggest, hint), get: () => tags };
     }
     let input;
     const v = value == null ? (f.default ?? '') : value;
@@ -449,20 +477,25 @@
     const list = el('div', { class: 'rows' });
     let q = '';
     let f = '';
+    const countEl = el('p', { class: 'filter-result' });
     const paint = () => {
       const shown = rows.filter((r) => (!q || (schema.search ? schema.search(r) : JSON.stringify(r)).toLowerCase().includes(q)) && (!schema.filterBy || schema.filterBy(r, f)));
-      list.replaceChildren(...(shown.length ? shown.map((r) => rowNode(schema.row(r), () => editItem(resource, r))) : [el('p', { class: 'empty' }, 'Nothing here yet.')]));
+      list.replaceChildren(...(shown.length ? shown.map((r) => rowNode(schema.row(r), () => editItem(resource, r))) : [el('p', { class: 'empty' }, rows.length ? 'Nothing matches this search.' : 'Nothing here yet.')]));
+      if (countEl) countEl.textContent = (q || f) ? `${shown.length} of ${rows.length} shown` : '';
     };
     paint();
     const tools = el('div', { class: 'toolbar' },
       el('input', { type: 'search', id: 'list-search', placeholder: `Search ${rows.length} ${schema.title.toLowerCase()}…`, oninput: (e) => { q = e.target.value.toLowerCase(); paint(); } }),
-      schema.filters ? el('select', { id: 'list-filter', onchange: (e) => { f = e.target.value; paint(); } }, schema.filters().map(([v, l]) => el('option', { value: v }, l))) : null);
+      schema.filters ? el('select', { id: 'list-filter', onchange: (e) => { f = e.target.value; paint(); } }, schema.filters(rows).map((o) => (Array.isArray(o)
+        ? el('option', { value: o[0] }, o[1])
+        : o.options.length ? el('optgroup', { label: o.group }, o.options.map(([v, l]) => el('option', { value: v }, l))) : null))) : null);
     return [
       el('div', { class: 'view-head' }, el('h1', {}, schema.title),
         el('div', { class: 'actions' }, schema.headActions ? schema.headActions() : null,
           schema.noCreate ? null : el('button', { class: 'btn btn-primary btn-sm', type: 'button', onclick: () => editItem(resource, null) }, '+ New ' + schema.singular))),
       schema.help ? el('p', { class: 'help' }, schema.help) : null,
       rows.length > 6 ? tools : null,
+      countEl,
       list,
     ];
   }
@@ -627,6 +660,64 @@
     ];
   }
 
+  // ---------- skills ----------
+  async function skillsView() {
+    const { skills } = await api('/api/admin/skills');
+    META.skills = skills.filter((x) => x.listed).map((x) => x.name);
+    const addIn = el('input', { id: 'sk-new', placeholder: 'e.g. Snake Rescue, Tree Climbing', autocomplete: 'off', enterkeyhint: 'done' });
+    const addSkill = async () => {
+      if (!addIn.value.trim()) return toast('Type a skill name first', true);
+      try { await api('/api/admin/skills', { method: 'POST', body: { name: addIn.value } }); toast('Skill added'); render(); } catch (err) { fail(err); }
+    };
+    addIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addSkill(); } });
+
+    const rowFor = (sk) => {
+      const actions = el('span', { class: 'row-badges' });
+      const showDefault = () => actions.replaceChildren(...[
+        sk.listed ? null : el('button', { class: 'btn btn-outline btn-sm', type: 'button', onclick: async () => {
+          try { await api('/api/admin/skills', { method: 'POST', body: { name: sk.name } }); toast('Added to the list'); render(); } catch (err) { fail(err); }
+        } }, 'Add to list'),
+        el('button', { class: 'btn btn-outline btn-sm', type: 'button', onclick: showRename }, 'Rename'),
+        el('button', { class: 'btn btn-danger btn-sm', type: 'button', onclick: showRemove }, 'Remove')].filter(Boolean));
+      const showRename = () => {
+        const inp = el('input', { value: sk.name, 'aria-label': 'New name for ' + sk.name, style: 'min-height:36px;max-width:200px' });
+        actions.replaceChildren(inp,
+          el('button', { class: 'btn btn-primary btn-sm', type: 'button', onclick: async () => {
+            try { const r = await api('/api/admin/skills/rename', { method: 'POST', body: { from: sk.name, to: inp.value } }); toast(`Renamed. ${r.membersUpdated} member(s) updated.`); render(); } catch (err) { fail(err); }
+          } }, 'Save'),
+          el('button', { class: 'btn btn-outline btn-sm', type: 'button', onclick: showDefault }, 'Cancel'));
+        inp.focus();
+      };
+      const showRemove = () => {
+        actions.replaceChildren(el('span', { class: 'confirm-bar' },
+          sk.count ? `${sk.count} member(s) have this skill.` : 'Remove from the list?',
+          el('button', { class: 'btn btn-danger btn-sm', type: 'button', onclick: () => removeSkill(false) }, sk.count ? 'Remove from list only' : 'Remove'),
+          sk.count ? el('button', { class: 'btn btn-danger btn-sm', type: 'button', onclick: () => removeSkill(true) }, 'Remove from members too') : null,
+          el('button', { class: 'btn btn-outline btn-sm', type: 'button', onclick: showDefault }, 'Cancel')));
+      };
+      const removeSkill = async (fromMembers) => {
+        try { const r = await api('/api/admin/skills/remove', { method: 'POST', body: { name: sk.name, fromMembers } }); toast(fromMembers ? `Removed from the list and ${r.membersUpdated} member(s)` : 'Removed from the list'); render(); } catch (err) { fail(err); }
+      };
+      showDefault();
+      return el('div', { class: 'row skill-row', style: 'cursor:default' },
+        el('span', { class: 'row-main' }, el('strong', {}, sk.name), el('span', {}, sk.count ? `${sk.count} member${sk.count > 1 ? 's' : ''}` : 'No members yet')),
+        actions);
+    };
+    const listed = skills.filter((x) => x.listed);
+    const extra = skills.filter((x) => !x.listed);
+    return [
+      el('div', { class: 'view-head' }, el('h1', {}, 'Skills')),
+      el('p', { class: 'help' }, 'This list appears as suggestions when you edit a member and as checkboxes on members\' own profile page. Renaming a skill updates every member who has it.'),
+      el('div', { class: 'group-box' },
+        el('div', { class: 'field' }, el('label', { for: 'sk-new' }, 'Add a new skill (separate several with commas)'), addIn),
+        el('div', {}, el('button', { class: 'btn btn-primary btn-sm', type: 'button', onclick: addSkill }, '+ Add skill'))),
+      extra.length ? el('h2', { style: 'margin-top:24px' }, 'Typed by members, not in the list yet') : null,
+      extra.length ? el('div', { class: 'rows' }, extra.map(rowFor)) : null,
+      el('h2', { style: 'margin-top:24px' }, `Skill list (${listed.length})`),
+      el('div', { class: 'rows' }, listed.map(rowFor)),
+    ];
+  }
+
   // ---------- account ----------
   async function accountView() {
     const admins = await api('/api/admin/admins');
@@ -671,6 +762,7 @@
     ['join_requests', 'Join requests', () => resourceView('join_requests')],
     ['needs', 'Equipment needs', () => resourceView('needs')],
     ['settings', 'Settings', settingsView],
+    ['skills', 'Skills', skillsView],
     ['account', 'Account', accountView],
   ];
 

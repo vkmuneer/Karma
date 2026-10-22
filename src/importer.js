@@ -97,14 +97,14 @@ function upsertMembers(rows) {
         || members.find((m) => m.name.toLowerCase() === r.name.toLowerCase());
       if (existing) {
         const fields = ['address', 'phone', 'phone2', 'place', 'blood_group', 'occupation'].filter((f) => r[f]);
-        if (r.skills) fields.push('skills');
+        if (r.skills) { r.skills = require('./skills').canonicalize(r.skills); fields.push('skills'); }
         if (!fields.length) continue;
         const values = fields.map((f) => (f === 'skills' ? JSON.stringify(r.skills) : r[f]));
         db.prepare(`UPDATE members SET ${fields.map((f) => `${f} = ?`).join(', ')} WHERE id = ?`).run(...values, existing.id);
         updated++;
       } else {
         const info = db.prepare(`INSERT INTO members (name, address, phone, phone2, place, blood_group, skills, occupation)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(r.name, r.address, r.phone, r.phone2, r.place, r.blood_group, JSON.stringify(r.skills || []), r.occupation);
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(r.name, r.address, r.phone, r.phone2, r.place, r.blood_group, JSON.stringify(require('./skills').canonicalize(r.skills || [])), r.occupation);
         members.push({ id: info.lastInsertRowid, name: r.name, phone: r.phone });
         added++;
       }

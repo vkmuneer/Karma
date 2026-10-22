@@ -108,8 +108,57 @@
     input.addEventListener('input', run);
     if (select) select.addEventListener('change', run);
   }
-  bindFilter('#team-search', '#team-skill', '#volunteer-list .person', '#team-empty', (el, f) => !f || el.dataset.skills.split('|').includes(f));
-  bindFilter('#dir-search', '#dir-blood', '#dir-list li', null, (el, f) => !f || el.dataset.blood === f);
+  // Member directory: text search plus blood group and skill filters.
+  const dirSearch = $('#dir-search');
+  if (dirSearch) {
+    const blood = $('#dir-blood');
+    const skill = $('#dir-skill');
+    const run = () => {
+      const q = dirSearch.value.trim().toLowerCase();
+      let shown = 0;
+      $$('#dir-list li').forEach((el) => {
+        const ok = (!q || el.dataset.name.includes(q)) && (!blood.value || el.dataset.blood === blood.value)
+          && (!skill || !skill.value || el.dataset.skills.split('|').includes(skill.value));
+        el.hidden = !ok;
+        if (ok) shown++;
+      });
+      $('#dir-count').textContent = shown;
+    };
+    [dirSearch, blood, skill].filter(Boolean).forEach((c) => c.addEventListener(c === dirSearch ? 'input' : 'change', run));
+  }
+
+  // Team page: search and skill filter cover every group (office bearers, executive, volunteers).
+  const teamSearch = $('#team-search');
+  if (teamSearch) {
+    const skillSel = $('#team-skill');
+    const result = $('#team-result');
+    const clear = $('#team-clear');
+    const run = () => {
+      const q = teamSearch.value.trim().toLowerCase();
+      const skill = skillSel ? skillSel.value : '';
+      const filtering = Boolean(q || skill);
+      let total = 0;
+      $$('.team-group').forEach((group) => {
+        let shown = 0;
+        $$('.person', group).forEach((el) => {
+          const ok = (!q || el.dataset.name.includes(q)) && (!skill || el.dataset.skills.split('|').includes(skill));
+          el.hidden = !ok;
+          if (ok) shown++;
+        });
+        group.hidden = shown === 0;
+        const count = $('[data-group-count]', group);
+        if (count) count.textContent = shown;
+        total += shown;
+      });
+      result.hidden = !filtering || total === 0;
+      result.textContent = (total === 1 ? result.dataset.one : result.dataset.many).replace('{n}', total);
+      $('#team-empty').hidden = !filtering || total > 0;
+      clear.hidden = !filtering;
+    };
+    teamSearch.addEventListener('input', run);
+    if (skillSel) skillSel.addEventListener('change', run);
+    clear.addEventListener('click', () => { teamSearch.value = ''; if (skillSel) skillSel.value = ''; run(); teamSearch.focus(); });
+  }
 
   // ---------- forms ----------
   function formMsg(form, text, ok) {

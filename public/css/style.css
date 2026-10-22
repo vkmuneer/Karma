@@ -49,6 +49,8 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
+/* Elements hidden by script must stay hidden even when a class sets display (cards, list rows). */
+[hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; scroll-padding-top: 90px; }
 body {
   margin: 0; background: var(--paper); color: var(--fg);
@@ -438,3 +440,10 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--signal); ou
 .people--top .avatar { background: var(--ink-2); box-shadow: 0 0 0 3px var(--signal); }
 .people--top .chips li { background: rgba(255,255,255,.1); color: var(--on-ink); }
 .people--after { margin-top: 14px; }
+
+/* team / directory filter */
+.team-filter-bar { padding-block: 24px 0; }
+.team-filter-bar .toolbar { margin-bottom: 8px; }
+.btn-clear { min-height: 46px; flex: none; }
+.filter-result { margin: 0 0 12px; font-weight: 600; color: var(--signal-deep); }
+.team-group[hidden] { display: none; }

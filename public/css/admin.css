@@ -93,3 +93,8 @@
 .toast.err { border-left-color: var(--crit); }
 .thumb-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .thumb-cap { min-height: 34px; padding: 4px 8px; font-size: .82rem; }
+.tag-add { min-height: 34px; padding: 4px 12px; }
+.skill-row { flex-wrap: wrap; }
+.skill-row .row-badges { flex-wrap: wrap; }
+.skill-row .row-main { flex: 1 1 150px; }
+.skill-row .row-main strong, .skill-row .row-main span { white-space: normal; }

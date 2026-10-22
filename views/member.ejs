@@ -57,10 +57,15 @@
       <input id="dir-search" type="search" placeholder="<%= t('search') %>…">
       <label class="sr-only" for="dir-blood"><%= t('blood_group') %></label>
       <select id="dir-blood"><option value=""><%= t('blood_group') %></option><% bloodGroups.forEach(b => { %><option><%= b %></option><% }) %></select>
+      <% if (dirSkills.length) { %>
+      <label class="sr-only" for="dir-skill"><%= t('skills') %></label>
+      <select id="dir-skill"><option value=""><%= t('filter_skill') %></option><% dirSkills.forEach(sk => { %><option value="<%= sk.key %>"><%= sk.name %></option><% }) %></select>
+      <% } %>
     </div>
+    <p class="filter-result"><span id="dir-count"><%= directory.length %></span> <%= lang === 'ml' ? 'പേർ' : 'people' %></p>
     <ul class="directory" id="dir-list">
       <% directory.forEach(d => { %>
-      <li data-name="<%= (d.name + ' ' + (d.place || '') + ' ' + d.skills.join(' ')).toLowerCase() %>" data-blood="<%= d.blood_group || '' %>">
+      <li data-name="<%= (d.name + ' ' + (d.place || '') + ' ' + d.skills.join(' ')).toLowerCase() %>" data-blood="<%= d.blood_group || '' %>" data-skills="<%= d.skills.map(sk => sk.trim().replace(/\s+/g, ' ').toLowerCase()).join('|') %>">
         <div class="avatar avatar-sm"><% if (d.photo) { %><img src="<%= d.photo %>" alt="" loading="lazy"><% } else { %><span><%= h.initials(d.name) %></span><% } %></div>
         <div class="dir-main">
           <strong><%= d.name %></strong>

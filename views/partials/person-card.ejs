@@ -1,4 +1,4 @@
-<article class="person <%= typeof big !== 'undefined' && big ? 'person--big' : '' %>" data-skills="<%= p.skills.join('|').toLowerCase() %>" data-name="<%= (p.name + ' ' + (p.place || '')).toLowerCase() %>">
+<article class="person <%= typeof big !== 'undefined' && big ? 'person--big' : '' %>" data-skills="<%= p.skills.map(sk => sk.trim().replace(/\s+/g, ' ').toLowerCase()).join('|') %>" data-name="<%= [p.name, p.place, p.occupation, h.roleLabel(p, 'en'), h.roleLabel(p, 'ml')].concat(p.skills).filter(Boolean).join(' ').toLowerCase() %>">
   <div class="avatar">
     <% if (p.photo) { %><img src="<%= p.photo %>" alt="" loading="lazy"><% } else { %><span><%= h.initials(p.name) %></span><% } %>
   </div>
