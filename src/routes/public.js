@@ -163,7 +163,8 @@ router.get('/member', (req, res) => {
   delete me.pin_hash;
   const dirSkills = [...new Map(directory.flatMap((d) => d.skills).map((sk) => [skills.skillKey(sk), sk])).entries()]
     .map(([k, name]) => ({ key: k, name })).sort((a, b) => a.name.localeCompare(b.name));
-  res.render('member', { directory, alerts, me, skillOptions: skills.skillList(), dirSkills, bloodGroups: h.BLOOD_GROUPS });
+  const staff = db.prepare('SELECT role FROM admins WHERE member_id = ? AND active = 1').get(req.member.id);
+  res.render('member', { directory, alerts, me, skillOptions: skills.skillList(), dirSkills, bloodGroups: h.BLOOD_GROUPS, staff });
 });
 
 router.get('/admin', (req, res) => {

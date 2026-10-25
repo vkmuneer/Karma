@@ -110,14 +110,23 @@ function present(row, resource) {
   return row;
 }
 
+// Who may change each resource. Photos can also be managed from inside missions and events.
+const WRITE_SECTIONS = { photos: ['photos', 'missions', 'events'] };
+// Lists holding private details need the section to read them; the rest are readable by any staff login.
+const PRIVATE_LISTS = ['members', 'join_requests'];
+const canWrite = (req) => auth.can(req.admin, ...(WRITE_SECTIONS[req.params.res] || [req.params.res]));
+const denied = (res) => res.status(403).json({ error: 'Your account does not have access to this section. Ask an administrator.' });
+
 router.get('/admin/r/:res', auth.requireAdmin, (req, res) => {
   const r = RESOURCES[req.params.res];
   if (!r) return res.status(404).json({ error: 'Unknown resource' });
+  if (PRIVATE_LISTS.includes(req.params.res) && !auth.can(req.admin, req.params.res)) return denied(res);
   const rows = db.prepare(`SELECT * FROM ${req.params.res} ORDER BY ${r.order}`).all();
   res.json(rows.map((row) => present(row, r)));
 });
 
 router.post('/admin/r/:res', auth.requireAdmin, (req, res) => {
+  if (RESOURCES[req.params.res] && !canWrite(req)) return denied(res);
   const r = RESOURCES[req.params.res];
   if (!r) return res.status(404).json({ error: 'Unknown resource' });
   const data = pick(r, req.body);
@@ -128,6 +137,7 @@ router.post('/admin/r/:res', auth.requireAdmin, (req, res) => {
 });
 
 router.put('/admin/r/:res/:id', auth.requireAdmin, (req, res) => {
+  if (RESOURCES[req.params.res] && !canWrite(req)) return denied(res);
   const r = RESOURCES[req.params.res];
   if (!r) return res.status(404).json({ error: 'Unknown resource' });
   const data = pick(r, req.body);
@@ -140,6 +150,7 @@ router.put('/admin/r/:res/:id', auth.requireAdmin, (req, res) => {
 });
 
 router.delete('/admin/r/:res/:id', auth.requireAdmin, (req, res) => {
+  if (RESOURCES[req.params.res] && !canWrite(req)) return denied(res);
   const r = RESOURCES[req.params.res];
   if (!r) return res.status(404).json({ error: 'Unknown resource' });
   const row = db.prepare(`SELECT * FROM ${req.params.res} WHERE id = ?`).get(req.params.id);
@@ -153,10 +164,11 @@ router.delete('/admin/r/:res/:id', auth.requireAdmin, (req, res) => {
 // ---------- admin: auth & accounts ----------
 router.post('/admin/login', auth.rateLimit({ windowMs: 15 * 60 * 1000, max: 10 }), (req, res) => {
   const { username, password } = req.body || {};
-  const admin = db.prepare('SELECT * FROM admins WHERE username = ?').get(String(username || '').trim());
+  const admin = db.prepare('SELECT * FROM admins WHERE username = ? COLLATE NOCASE').get(String(username || '').trim());
   if (!admin || !auth.verifyPassword(password, admin.pass_hash)) return res.status(401).json({ error: 'Wrong username or password' });
+  if (!admin.active) return res.status(403).json({ error: 'This account has been switched off. Ask an administrator.' });
   auth.createSession(req, res, 'admin', admin.id);
-  res.json({ id: admin.id, username: admin.username, name: admin.name });
+  res.json({ id: admin.id, username: admin.username, name: admin.name, role: admin.role });
 });
 
 router.post('/admin/logout', (req, res) => {
@@ -168,7 +180,7 @@ router.get('/admin/me', (req, res) => {
   if (!req.admin) return res.status(401).json({ error: 'Not logged in' });
   res.json({
     admin: req.admin,
-    meta: { roles: ROLES, categories: MISSION_CATEGORIES, eventCategories: EVENT_CATEGORIES, bloodGroups: BLOOD_GROUPS, skills: skills.skillList() },
+    meta: { sections: auth.SECTIONS, defaultModeratorSections: auth.DEFAULT_MODERATOR_SECTIONS, roles: ROLES, categories: MISSION_CATEGORIES, eventCategories: EVENT_CATEGORIES, bloodGroups: BLOOD_GROUPS, skills: skills.skillList() },
   });
 });
 
@@ -181,39 +193,86 @@ router.post('/admin/password', auth.requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-router.get('/admin/admins', auth.requireAdmin, (req, res) => {
-  res.json(db.prepare('SELECT id, username, name, created_at FROM admins ORDER BY id').all());
+// ---------- staff accounts (admins and moderators) ----------
+const USERNAME_RE = /^[a-zA-Z0-9_.-]{3,32}$/;
+
+function staffRow(a) {
+  let perms = [];
+  try { perms = JSON.parse(a.permissions || '[]'); } catch { perms = []; }
+  return { id: a.id, username: a.username, name: a.name, role: a.role || 'admin', permissions: perms, member_id: a.member_id, active: a.active, created_at: a.created_at };
+}
+
+function cleanPermissions(list) {
+  return JSON.stringify((Array.isArray(list) ? list : []).filter((p) => auth.SECTIONS.includes(p)));
+}
+
+const activeAdminCount = (exceptId) => db.prepare("SELECT COUNT(*) n FROM admins WHERE role = 'admin' AND active = 1 AND id != ?").get(exceptId || 0).n;
+
+router.get('/admin/admins', auth.requireFullAdmin, (req, res) => {
+  const rows = db.prepare(`SELECT a.*, m.name AS member_name FROM admins a LEFT JOIN members m ON m.id = a.member_id
+    ORDER BY CASE a.role WHEN 'admin' THEN 0 ELSE 1 END, a.name COLLATE NOCASE`).all();
+  res.json(rows.map((a) => ({ ...staffRow(a), member_name: a.member_name })));
 });
 
-router.post('/admin/admins', auth.requireAdmin, (req, res) => {
-  const { username, name, password } = req.body || {};
-  if (!username || !/^[a-zA-Z0-9_.-]{3,32}$/.test(username)) return res.status(400).json({ error: 'Username: 3-32 letters, numbers, . _ -' });
+router.post('/admin/admins', auth.requireFullAdmin, (req, res) => {
+  const { username, name, password, role, permissions, member_id } = req.body || {};
+  if (!username || !USERNAME_RE.test(username)) return res.status(400).json({ error: 'Username: 3-32 letters, numbers, . _ - (a phone number works well)' });
   if (!password || String(password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  const r = role === 'moderator' ? 'moderator' : 'admin';
   try {
-    db.prepare('INSERT INTO admins (username, name, pass_hash) VALUES (?, ?, ?)').run(username, name || username, auth.hashPassword(password));
+    db.prepare('INSERT INTO admins (username, name, pass_hash, role, permissions, member_id) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(username, String(name || username).slice(0, 100), auth.hashPassword(password), r, cleanPermissions(permissions), member_id || null);
   } catch {
     return res.status(400).json({ error: 'That username is already taken' });
   }
   res.json({ ok: true });
 });
 
-router.delete('/admin/admins/:id', auth.requireAdmin, (req, res) => {
-  if (+req.params.id === req.admin.id) return res.status(400).json({ error: 'You cannot delete your own account' });
-  db.prepare('DELETE FROM admins WHERE id = ?').run(req.params.id);
-  auth.destroyUserSessions('admin', +req.params.id);
+router.put('/admin/admins/:id', auth.requireFullAdmin, (req, res) => {
+  const id = +req.params.id;
+  const existing = db.prepare('SELECT * FROM admins WHERE id = ?').get(id);
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+  const b = req.body || {};
+  const role = b.role === 'moderator' ? 'moderator' : b.role === 'admin' ? 'admin' : existing.role;
+  const active = b.active === undefined ? existing.active : (b.active ? 1 : 0);
+  if (id === req.admin.id && (role !== 'admin' || !active)) return res.status(400).json({ error: 'You cannot remove your own admin access' });
+  if (existing.role === 'admin' && (role !== 'admin' || !active) && activeAdminCount(id) === 0) {
+    return res.status(400).json({ error: 'There must always be at least one active administrator' });
+  }
+  if (b.password !== undefined && b.password !== '' && String(b.password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  db.prepare('UPDATE admins SET name = ?, role = ?, permissions = ?, member_id = ?, active = ? WHERE id = ?').run(
+    String(b.name || existing.name || existing.username).slice(0, 100), role,
+    b.permissions !== undefined ? cleanPermissions(b.permissions) : existing.permissions,
+    b.member_id !== undefined ? (b.member_id || null) : existing.member_id, active, id);
+  if (b.password) {
+    db.prepare('UPDATE admins SET pass_hash = ? WHERE id = ?').run(auth.hashPassword(b.password), id);
+    auth.destroyUserSessions('admin', id);
+  }
+  if (!active) auth.destroyUserSessions('admin', id);
+  res.json({ ok: true });
+});
+
+router.delete('/admin/admins/:id', auth.requireFullAdmin, (req, res) => {
+  const id = +req.params.id;
+  if (id === req.admin.id) return res.status(400).json({ error: 'You cannot delete your own account' });
+  const existing = db.prepare('SELECT * FROM admins WHERE id = ?').get(id);
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+  if (existing.role === 'admin' && existing.active && activeAdminCount(id) === 0) return res.status(400).json({ error: 'There must always be at least one active administrator' });
+  db.prepare('DELETE FROM admins WHERE id = ?').run(id);
+  auth.destroyUserSessions('admin', id);
   res.json({ ok: true });
 });
 
 // ---------- admin: settings, stats, alerts, members ----------
 const PRIVATE_SETTINGS = ['vapid_keys', 'seeded'];
 
-router.get('/admin/settings', auth.requireAdmin, (req, res) => {
+router.get('/admin/settings', auth.requirePermission('settings'), (req, res) => {
   const s = allSettings();
   for (const k of PRIVATE_SETTINGS) delete s[k];
   res.json(s);
 });
 
-router.put('/admin/settings', auth.requireAdmin, (req, res) => {
+router.put('/admin/settings', auth.requirePermission('settings'), (req, res) => {
   for (const [k, v] of Object.entries(req.body || {})) {
     if (PRIVATE_SETTINGS.includes(k) || !/^[a-z0-9_]{1,40}$/.test(k)) continue;
     setSetting(k, v);
@@ -241,7 +300,7 @@ router.get('/admin/stats', auth.requireAdmin, (req, res) => {
   });
 });
 
-router.post('/admin/alerts/:id/push', auth.requireAdmin, async (req, res) => {
+router.post('/admin/alerts/:id/push', auth.requirePermission('alerts'), async (req, res) => {
   const alert = db.prepare('SELECT * FROM alerts WHERE id = ?').get(req.params.id);
   if (!alert) return res.status(404).json({ error: 'Not found' });
   try {
@@ -254,7 +313,7 @@ router.post('/admin/alerts/:id/push', auth.requireAdmin, async (req, res) => {
 });
 
 // Generates a new 6-digit PIN for a member and returns it once so the admin can share it.
-router.post('/admin/members/:id/pin', auth.requireAdmin, (req, res) => {
+router.post('/admin/members/:id/pin', auth.requirePermission('members'), (req, res) => {
   const member = db.prepare('SELECT id FROM members WHERE id = ?').get(req.params.id);
   if (!member) return res.status(404).json({ error: 'Not found' });
   const pin = String(crypto.randomInt(100000, 1000000));
@@ -263,7 +322,7 @@ router.post('/admin/members/:id/pin', auth.requireAdmin, (req, res) => {
   res.json({ pin });
 });
 
-router.post('/admin/members/import', auth.requireAdmin, sheetUpload.single('file'), async (req, res) => {
+router.post('/admin/members/import', auth.requirePermission('members'), sheetUpload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Please choose an .xlsx or .csv file' });
   try {
     const rows = await readRows(req.file.path, req.file.originalname);
@@ -276,7 +335,7 @@ router.post('/admin/members/import', auth.requireAdmin, sheetUpload.single('file
 });
 
 // ---------- admin: skill list ----------
-router.get('/admin/skills', auth.requireAdmin, (req, res) => {
+router.get('/admin/skills', auth.requirePermission('skills'), (req, res) => {
   const used = skills.usage();
   const list = skills.skillList().map((name) => {
     const u = used.get(skills.skillKey(name));
@@ -287,20 +346,20 @@ router.get('/admin/skills', auth.requireAdmin, (req, res) => {
   res.json({ skills: list.concat(extra) });
 });
 
-router.post('/admin/skills', auth.requireAdmin, (req, res) => {
+router.post('/admin/skills', auth.requirePermission('skills'), (req, res) => {
   const name = String((req.body && req.body.name) || '').trim();
   if (!name) return res.status(400).json({ error: 'Type a skill name' });
   skills.saveList(skills.skillList().concat(name.split(',')));
   res.json({ ok: true });
 });
 
-router.post('/admin/skills/rename', auth.requireAdmin, (req, res) => {
+router.post('/admin/skills/rename', auth.requirePermission('skills'), (req, res) => {
   const { from, to } = req.body || {};
   if (!from || !String(to || '').trim()) return res.status(400).json({ error: 'Type the new name' });
   res.json({ ok: true, membersUpdated: skills.rename(from, to) });
 });
 
-router.post('/admin/skills/remove', auth.requireAdmin, (req, res) => {
+router.post('/admin/skills/remove', auth.requirePermission('skills'), (req, res) => {
   const { name, fromMembers } = req.body || {};
   if (!name) return res.status(400).json({ error: 'Missing skill' });
   res.json({ ok: true, membersUpdated: skills.remove(name, Boolean(fromMembers)) });

@@ -29,8 +29,11 @@ The site works well on phones. Office bearers manage everything from `/admin`, a
 - **Members:** roles, skills, photos, private contact details, PIN generation (sent by WhatsApp),
   and **Import from Excel** (the Google Form "Contact Information" sheet)
 - **Join requests:** from the website form, with one tap to add as a member
+- **Events** (trainings, awareness classes, drills, camps…) and **Skills** (the skill list members choose from)
 - **Equipment needs**, **Site settings** (names, taglines, intro and About text in both languages, phones, social links, stats,
-  donation details), **Admin accounts**
+  donation details)
+- **Staff & Moderators**: administrators have full access; moderators log in at `/admin` with their own
+  username and password and see only the sections ticked for them (Members, Skills and Settings are off by default)
 
 ## Run locally
 
@@ -41,7 +44,7 @@ ADMIN_PASSWORD='choose-a-strong-password' npm start
 ```
 
 If `ADMIN_PASSWORD` is not set on the first start, a random password is printed in the console.
-To reset it later: `npm run reset-admin -- admin 'new-password'`.
+To reset it later (this also restores full admin access): `npm run reset-admin -- admin 'new-password'`.
 
 ### First steps after launch
 1. Log in at `/admin` and change the password (Account).

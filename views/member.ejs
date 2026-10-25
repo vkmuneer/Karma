@@ -26,6 +26,7 @@
       <div class="hero-cta">
         <button class="btn btn-primary js-push" type="button" hidden><%= t('enable_notifications') %></button>
         <span class="push-on" hidden><%= t('notifications_on') %> ✓</span>
+        <% if (staff) { %><a class="btn btn-ghost" href="/admin"><%= staff.role === 'admin' ? (lang === 'ml' ? 'അഡ്മിൻ പാനൽ' : 'Admin panel') : (lang === 'ml' ? 'മോഡറേറ്റർ പാനൽ' : 'Moderator panel') %> →</a><% } %>
         <button class="btn btn-ghost" type="button" id="member-logout"><%= lang === 'ml' ? 'ലോഗൗട്ട്' : 'Log out' %></button>
       </div>
     </div>

@@ -2,6 +2,10 @@ const crypto = require('crypto');
 const { db } = require('./db');
 
 const SESSION_DAYS = 30;
+
+// Sections a moderator can be given. Managing staff accounts is always admin-only.
+const SECTIONS = ['alerts', 'missions', 'events', 'updates', 'photos', 'join_requests', 'needs', 'members', 'skills', 'settings'];
+const DEFAULT_MODERATOR_SECTIONS = ['alerts', 'missions', 'events', 'updates', 'photos', 'join_requests', 'needs'];
 const COOKIE = { admin: 'karma_admin', member: 'karma_member' };
 
 function hashPassword(password) {
@@ -66,7 +70,14 @@ function sessionUser(req, kind) {
     db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
     return null;
   }
-  if (kind === 'admin') return db.prepare('SELECT id, username, name FROM admins WHERE id = ?').get(s.user_id) || null;
+  if (kind === 'admin') {
+    const staff = db.prepare('SELECT id, username, name, role, permissions, member_id FROM admins WHERE id = ? AND active = 1').get(s.user_id);
+    if (!staff) return null;
+    let perms = [];
+    try { perms = JSON.parse(staff.permissions || '[]'); } catch { perms = []; }
+    staff.permissions = staff.role === 'admin' ? SECTIONS.slice() : perms.filter((p) => SECTIONS.includes(p));
+    return staff;
+  }
   return db.prepare('SELECT * FROM members WHERE id = ? AND active = 1').get(s.user_id) || null;
 }
 
@@ -85,9 +96,30 @@ function requireFetch(req, res, next) {
   res.status(403).json({ error: 'Bad request origin' });
 }
 
+// Any staff login (admin or moderator).
 function requireAdmin(req, res, next) {
   if (req.admin) return next();
   res.status(401).json({ error: 'Admin login required' });
+}
+
+// Full administrators only.
+function requireFullAdmin(req, res, next) {
+  if (!req.admin) return res.status(401).json({ error: 'Admin login required' });
+  if (req.admin.role === 'admin') return next();
+  res.status(403).json({ error: 'Only administrators can do this' });
+}
+
+function can(staff, ...sections) {
+  return Boolean(staff) && (staff.role === 'admin' || sections.some((s) => staff.permissions.includes(s)));
+}
+
+// Staff with at least one of the given sections.
+function requirePermission(...sections) {
+  return (req, res, next) => {
+    if (!req.admin) return res.status(401).json({ error: 'Admin login required' });
+    if (can(req.admin, ...sections)) return next();
+    res.status(403).json({ error: 'Your account does not have access to this section. Ask an administrator.' });
+  };
 }
 
 function requireMember(req, res, next) {
@@ -117,5 +149,5 @@ function cleanupSessions() {
 
 module.exports = {
   hashPassword, verifyPassword, createSession, destroySession, destroyUserSessions,
-  loadUsers, requireFetch, requireAdmin, requireMember, rateLimit, cleanupSessions,
+  loadUsers, requireFetch, requireAdmin, requireFullAdmin, requirePermission, can, SECTIONS, DEFAULT_MODERATOR_SECTIONS, requireMember, rateLimit, cleanupSessions,
 };

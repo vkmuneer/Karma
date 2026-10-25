@@ -185,7 +185,7 @@
       row: (j) => ({ initials: j.name, title: j.name, sub: [j.phone, j.place, fmtDate(j.created_at)].filter(Boolean).join(' · '), badges: [[j.status, j.status === 'new' ? 'b-signal' : '']] }),
       extra: (row) => row && el('div', { class: 'quick' },
         row.phone && el('a', { class: 'btn btn-whatsapp btn-sm', target: '_blank', rel: 'noopener', href: `https://wa.me/${telDigits(row.phone)}` }, 'WhatsApp'),
-        row.status !== 'added' && el('button', { class: 'btn btn-primary btn-sm', type: 'button', onclick: async () => {
+        row.status !== 'added' && can('members') && el('button', { class: 'btn btn-primary btn-sm', type: 'button', onclick: async () => {
           try {
             await api('/api/admin/r/members', { method: 'POST', body: { name: row.name, phone: row.phone, place: row.place, blood_group: row.blood_group, skills: String(row.skills || '').split(',') } });
             await api(`/api/admin/r/join_requests/${row.id}`, { method: 'PUT', body: { status: 'added' } });
@@ -568,29 +568,33 @@
     const s = await api('/api/admin/stats');
     const tile = (n, label, view) => el('button', { class: 'dash-tile row', type: 'button', style: 'display:block', onclick: () => go(view) }, el('b', {}, n), el('span', {}, label));
     const todo = [];
+    const quick = (view, label, primary) => can(view === 'photos' ? 'photos' : view) && el('button', { class: 'btn ' + (primary ? 'btn-primary' : 'btn-outline'), type: 'button', onclick: () => { go(view); if (view !== 'photos') setTimeout(() => editItem(view, null), 50); } }, label);
+    const tileIf = (section, ...args) => (can(section) ? tile(...args) : null);
+    if (can('members')) {
     if (s.missingRoles.length) todo.push(`Assign office bearers: ${s.missingRoles.map(roleName).join(', ')} (Members → open a member → Role).`);
     if (s.membersWithPhone < s.members) todo.push(`${s.members - s.membersWithPhone} members have no phone number. Import the contact spreadsheet (Members → Import from Excel).`);
     if (s.membersWithSkills < s.members) todo.push(`${s.members - s.membersWithSkills} members have no skills listed yet. Members can add their own after logging in.`);
     if (s.membersWithPin < s.members) todo.push(`${s.members - s.membersWithPin} members cannot log in yet. Generate PINs from each member's page.`);
-    if (!s.photos) todo.push('No photos yet. Add mission photos from the Gallery.');
-    if (s.newJoinRequests) todo.push(`${s.newJoinRequests} new volunteer join request(s) waiting.`);
+    }
+    if (!s.photos && can('photos')) todo.push('No photos yet. Add mission photos from the Gallery.');
+    if (s.newJoinRequests && can('join_requests')) todo.push(`${s.newJoinRequests} new volunteer join request(s) waiting.`);
     return [
       el('div', { class: 'view-head' }, el('h1', {}, 'Welcome, ' + (ADMIN.name || ADMIN.username))),
       el('div', { class: 'quick', style: 'margin-bottom:20px' },
-        el('button', { class: 'btn btn-primary', type: 'button', onclick: () => { go('alerts'); setTimeout(() => editItem('alerts', null), 50); } }, '🚨 Send an alert'),
-        el('button', { class: 'btn btn-outline', type: 'button', onclick: () => { go('updates'); setTimeout(() => editItem('updates', null), 50); } }, 'Post an update'),
-        el('button', { class: 'btn btn-outline', type: 'button', onclick: () => { go('missions'); setTimeout(() => editItem('missions', null), 50); } }, 'Add a mission'),
-        el('button', { class: 'btn btn-outline', type: 'button', onclick: () => { go('events'); setTimeout(() => editItem('events', null), 50); } }, 'Add an event'),
-        el('button', { class: 'btn btn-outline', type: 'button', onclick: () => go('photos') }, 'Upload photos')),
+        quick('alerts', '🚨 Send an alert', true),
+        quick('updates', 'Post an update'),
+        quick('missions', 'Add a mission'),
+        quick('events', 'Add an event'),
+        quick('photos', 'Upload photos')),
       el('div', { class: 'dash-grid' },
-        tile(s.members, 'active members', 'members'),
-        tile(s.missions, 'missions', 'missions'),
-        tile(s.events, 'events', 'events'),
-        tile(s.updates, 'updates', 'updates'),
-        tile(s.photos, 'photos', 'photos'),
-        tile(s.activeAlerts, 'active alerts', 'alerts'),
-        tile(`${s.memberPushDevices}/${s.pushDevices}`, 'member / all devices with notifications', 'alerts'),
-        tile(s.newJoinRequests, 'new join requests', 'join_requests')),
+        tileIf('members', s.members, 'active members', 'members'),
+        tileIf('missions', s.missions, 'missions', 'missions'),
+        tileIf('events', s.events, 'events', 'events'),
+        tileIf('updates', s.updates, 'updates', 'updates'),
+        tileIf('photos', s.photos, 'photos', 'photos'),
+        tileIf('alerts', s.activeAlerts, 'active alerts', 'alerts'),
+        tileIf('alerts', `${s.memberPushDevices}/${s.pushDevices}`, 'member / all devices with notifications', 'alerts'),
+        tileIf('join_requests', s.newJoinRequests, 'new join requests', 'join_requests')),
       todo.length ? el('h2', {}, 'To do') : null,
       todo.length ? el('ul', { class: 'todo' }, todo.map((t) => el('li', {}, t))) : null,
     ];
@@ -719,52 +723,151 @@
   }
 
   // ---------- account ----------
+  // ---------- my account ----------
   async function accountView() {
-    const admins = await api('/api/admin/admins');
     const pw = buildForm([
       { name: 'current', label: 'Current password', type: 'password' },
       { name: 'password', label: 'New password (min 8 characters)', type: 'password' },
     ]);
-    const add = buildForm([
-      { name: 'username', label: 'Username', half: true },
-      { name: 'name', label: 'Full name', half: true },
-      { name: 'password', label: 'Password (min 8 characters)', type: 'password' },
-    ]);
+    const sections = ADMIN.role === 'admin' ? 'Full access to every section.' : 'You can manage: ' + ADMIN.permissions.map((p) => SECTION_LABELS[p] || p).join(', ') + '.';
     return [
-      el('div', { class: 'view-head' }, el('h1', {}, 'Account & Admins')),
+      el('div', { class: 'view-head' }, el('h1', {}, 'My account')),
+      el('div', { class: 'card', style: 'margin-bottom:20px' },
+        el('strong', {}, ADMIN.name || ADMIN.username), ' ', el('span', { class: 'b ' + (ADMIN.role === 'admin' ? 'b-ink' : 'b-signal') }, ADMIN.role === 'admin' ? 'Administrator' : 'Moderator'),
+        el('p', { class: 'help', style: 'margin:6px 0 0' }, '@' + ADMIN.username + ' · ' + sections)),
       el('div', { class: 'form card' }, el('h2', {}, 'Change your password'), pw.nodes,
         el('button', { class: 'btn btn-primary', type: 'button', onclick: async () => {
           try { await api('/api/admin/password', { method: 'POST', body: pw.read() }); toast('Password changed'); render(); } catch (err) { fail(err); }
         } }, 'Change password')),
-      el('div', { class: 'form card', style: 'margin-top:20px' }, el('h2', {}, 'Admins'),
-        el('p', { class: 'help' }, 'Everyone listed here can edit the whole website.'),
-        el('div', { class: 'rows' }, admins.map((a) => el('div', { class: 'row', style: 'cursor:default' },
-          el('span', { class: 'row-main' }, el('strong', {}, a.name || a.username), el('span', {}, '@' + a.username)),
-          a.id === ADMIN.id ? el('span', { class: 'b b-ok' }, 'you') : confirmButton('Remove', async () => {
-            try { await api(`/api/admin/admins/${a.id}`, { method: 'DELETE' }); toast('Removed'); render(); } catch (err) { fail(err); }
-          })))),
-        el('h3', { style: 'margin-top:12px' }, 'Add another admin'), add.nodes,
-        el('button', { class: 'btn btn-outline', type: 'button', onclick: async () => {
-          try { await api('/api/admin/admins', { method: 'POST', body: add.read() }); toast('Admin added'); render(); } catch (err) { fail(err); }
-        } }, 'Add admin')),
     ];
   }
 
+  // ---------- staff: administrators and moderators ----------
+  const SECTION_LABELS = {
+    alerts: 'Alerts', missions: 'Missions', events: 'Events', updates: 'Updates', photos: 'Gallery',
+    join_requests: 'Join requests', needs: 'Equipment needs', members: 'Members (private contact details)', skills: 'Skills', settings: 'Site settings',
+  };
+  const randomPassword = () => {
+    const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const bytes = crypto.getRandomValues(new Uint8Array(10));
+    return [...bytes].map((b) => chars[b % chars.length]).join('');
+  };
+
+  async function staffView() {
+    const [staff, members] = await Promise.all([api('/api/admin/admins'), api('/api/admin/r/members')]);
+    const rows = staff.map((a) => rowNode({
+      initials: a.name || a.username,
+      title: a.name || a.username,
+      sub: '@' + a.username + (a.role === 'moderator' ? ' · ' + (a.permissions.map((p) => SECTION_LABELS[p] || p).join(', ') || 'no sections yet') : ' · full access'),
+      badges: [[a.role === 'admin' ? 'Admin' : 'Moderator', a.role === 'admin' ? 'b-ink' : 'b-signal'], a.id === ADMIN.id && ['you', 'b-ok'], !a.active && ['switched off', 'b-warn']],
+    }, () => editStaff(a, members)));
+    return [
+      el('div', { class: 'view-head' }, el('h1', {}, 'Staff & Moderators'),
+        el('div', { class: 'actions' }, el('button', { class: 'btn btn-primary btn-sm', type: 'button', onclick: () => editStaff(null, members) }, '+ Add moderator'))),
+      el('p', { class: 'help' }, 'Moderators log in at ' + location.origin + '/admin with their own username and password, and see only the sections you tick. Administrators can do everything, including managing this list.'),
+      el('div', { class: 'rows' }, rows),
+    ];
+  }
+
+  function editStaff(account, members) {
+    const isNew = !account;
+    const isSelf = account && account.id === ADMIN.id;
+    const memberSel = el('select', { id: 's-member' }, el('option', { value: '' }, 'Not linked to a member'),
+      members.map((m) => el('option', { value: m.id }, [m.name, m.place, m.phone].filter(Boolean).join(' · '))));
+    memberSel.value = account && account.member_id ? String(account.member_id) : '';
+    const nameIn = el('input', { id: 's-name', value: account ? account.name || '' : '' });
+    const userIn = el('input', { id: 's-user', value: account ? account.username : '', autocomplete: 'off', disabled: !isNew, placeholder: 'e.g. 9946766406 or shafi' });
+    const roleSel = el('select', { id: 's-role' }, el('option', { value: 'moderator' }, 'Moderator — only the sections ticked below'), el('option', { value: 'admin' }, 'Administrator — full access'));
+    roleSel.value = account ? account.role : 'moderator';
+    roleSel.disabled = isSelf;
+    const chosen = new Set(account ? account.permissions : META.defaultModeratorSections);
+    const permBoxes = META.sections.map((sec) => {
+      const cb = el('input', { type: 'checkbox', value: sec, checked: chosen.has(sec) });
+      return { sec, cb, node: el('label', { class: 'check perm' }, cb, SECTION_LABELS[sec] || sec) };
+    });
+    const permBox = el('fieldset', { class: 'group-box' }, el('legend', { class: 'label' }, 'Sections this moderator can manage'), permBoxes.map((p) => p.node),
+      el('p', { class: 'help', style: 'margin:0' }, 'Members holds private phone numbers and addresses, so tick it only for people you trust with that.'));
+    const syncRole = () => { permBox.hidden = roleSel.value !== 'moderator'; };
+    roleSel.addEventListener('change', syncRole);
+    syncRole();
+    const pwIn = el('input', { id: 's-pass', type: 'text', autocomplete: 'new-password', value: isNew ? randomPassword() : '', placeholder: isNew ? '' : 'Leave empty to keep the current password' });
+    const activeCb = el('input', { type: 'checkbox', id: 's-active', checked: account ? Boolean(account.active) : true, disabled: isSelf });
+    memberSel.addEventListener('change', () => {
+      const m = members.find((x) => String(x.id) === memberSel.value);
+      if (!m) return;
+      if (!nameIn.value) nameIn.value = m.name;
+      if (isNew && !userIn.value && m.phone) userIn.value = String(m.phone).replace(/\D/g, '').slice(-10);
+    });
+    const out = el('div');
+    const save = el('button', { class: 'btn btn-primary', type: 'button' }, isNew ? 'Create account' : 'Save changes');
+    save.addEventListener('click', async () => {
+      const body = {
+        name: nameIn.value.trim(), role: roleSel.value, member_id: memberSel.value ? +memberSel.value : null,
+        permissions: permBoxes.filter((p) => p.cb.checked).map((p) => p.sec), active: activeCb.checked,
+      };
+      if (pwIn.value) body.password = pwIn.value;
+      if (isNew) body.username = userIn.value.trim();
+      if (body.role === 'moderator' && !body.permissions.length) return toast('Tick at least one section for this moderator', true);
+      save.disabled = true;
+      try {
+        if (isNew) await api('/api/admin/admins', { method: 'POST', body });
+        else await api(`/api/admin/admins/${account.id}`, { method: 'PUT', body });
+        toast(isNew ? 'Account created' : 'Saved');
+        render();
+        if (isNew || pwIn.value) {
+          // Show the login details once so they can be shared.
+          const m = members.find((x) => String(x.id) === memberSel.value);
+          const username = isNew ? body.username : account.username;
+          const msg = `കർമ്മ ഓമശ്ശേരി ${body.role === 'admin' ? 'admin' : 'moderator'} login\n${location.origin}/admin\nUsername: ${username}\nPassword: ${pwIn.value}\nPlease change the password after logging in (My account).`;
+          out.replaceChildren(el('div', { class: 'pin-box' },
+            el('span', {}, 'Login details for ' + (body.name || username)),
+            el('span', {}, 'Username: ', el('b', { style: 'font-size:1.2rem;letter-spacing:.05em' }, username)),
+            el('span', {}, 'Password: ', el('b', { style: 'font-size:1.2rem;letter-spacing:.05em' }, pwIn.value)),
+            el('span', {}, 'Share these now. The password will not be shown again.'),
+            m && m.phone ? el('a', { class: 'btn btn-whatsapp btn-sm', target: '_blank', rel: 'noopener', href: `https://wa.me/${telDigits(m.phone)}?text=${encodeURIComponent(msg)}` }, 'Send on WhatsApp') : null));
+          save.hidden = true;
+          out.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else closeSheet();
+      } catch (err) { fail(err); }
+      save.disabled = false;
+    });
+    const fields = el('div', { class: 'form' },
+      el('div', { class: 'field' }, el('label', { for: 's-member' }, 'Member (optional)'), memberSel),
+      el('div', { class: 'field-row' },
+        el('div', { class: 'field' }, el('label', { for: 's-name' }, 'Name'), nameIn),
+        el('div', { class: 'field' }, el('label', { for: 's-user' }, 'Username' + (isNew ? ' *' : '')), userIn)),
+      el('div', { class: 'field' }, el('label', { for: 's-role' }, 'Access'), roleSel),
+      permBox,
+      el('div', { class: 'field' }, el('label', { for: 's-pass' }, isNew ? 'Password (generated; you can change it)' : 'Set a new password'),
+        el('div', { class: 'pw-row' }, pwIn, el('button', { class: 'btn btn-outline btn-sm', type: 'button', onclick: () => { pwIn.value = randomPassword(); } }, 'Generate'))),
+      el('label', { class: 'check', for: 's-active' }, activeCb, 'Account is active (untick to block login)'),
+      out);
+    openSheet(isNew ? 'New moderator' : 'Edit ' + (account.name || account.username), fields, [save,
+      !isNew && !isSelf ? confirmButton('Delete account', async () => {
+        try { await api(`/api/admin/admins/${account.id}`, { method: 'DELETE' }); toast('Account deleted'); closeSheet(); render(); } catch (err) { fail(err); }
+      }) : null]);
+  }
+
   // ---------- shell ----------
-  const VIEWS = [
-    ['dashboard', 'Dashboard', dashboardView],
-    ['alerts', 'Alerts', () => resourceView('alerts')],
-    ['missions', 'Missions', () => resourceView('missions')],
-    ['events', 'Events', () => resourceView('events')],
-    ['updates', 'Updates', () => resourceView('updates')],
-    ['photos', 'Gallery', galleryView],
-    ['members', 'Members', () => resourceView('members')],
-    ['join_requests', 'Join requests', () => resourceView('join_requests')],
-    ['needs', 'Equipment needs', () => resourceView('needs')],
-    ['settings', 'Settings', settingsView],
-    ['skills', 'Skills', skillsView],
-    ['account', 'Account', accountView],
+  // [key, label, view, section needed (null = every staff login, 'admin' = administrators only)]
+  const ALL_VIEWS = [
+    ['dashboard', 'Dashboard', dashboardView, null],
+    ['alerts', 'Alerts', () => resourceView('alerts'), 'alerts'],
+    ['missions', 'Missions', () => resourceView('missions'), 'missions'],
+    ['events', 'Events', () => resourceView('events'), 'events'],
+    ['updates', 'Updates', () => resourceView('updates'), 'updates'],
+    ['photos', 'Gallery', galleryView, 'photos'],
+    ['members', 'Members', () => resourceView('members'), 'members'],
+    ['join_requests', 'Join requests', () => resourceView('join_requests'), 'join_requests'],
+    ['needs', 'Equipment needs', () => resourceView('needs'), 'needs'],
+    ['settings', 'Settings', settingsView, 'settings'],
+    ['skills', 'Skills', skillsView, 'skills'],
+    ['staff', 'Staff & Moderators', staffView, 'admin'],
+    ['account', 'My account', accountView, null],
   ];
+  const can = (section) => !section || ADMIN.role === 'admin' || (section !== 'admin' && ADMIN.permissions.includes(section));
+  let VIEWS = ALL_VIEWS;
+
 
   function go(view) {
     current = view;
@@ -789,7 +892,7 @@
   function showShell() {
     app.replaceChildren(el('div', { class: 'admin-shell' },
       el('aside', { class: 'admin-side' },
-        el('div', { class: 'admin-side-head' }, el('img', { src: '/img/logo-160.png', alt: '' }), el('strong', {}, 'Karma Admin'),
+        el('div', { class: 'admin-side-head' }, el('img', { src: '/img/logo-160.png', alt: '' }), el('strong', {}, ADMIN.role === 'admin' ? 'Karma Admin' : 'Karma Moderator'),
           el('a', { href: '/', target: '_blank', rel: 'noopener' }, 'View website ↗')),
         el('nav', { class: 'admin-nav' }, VIEWS.map(([key, label]) => el('button', { type: 'button', 'data-view': key, onclick: () => go(key) }, label)),
           el('button', { type: 'button', onclick: async () => { await api('/api/admin/logout', { method: 'POST' }); showLogin(); } }, 'Log out'))),
@@ -801,7 +904,7 @@
     const msg = el('p', { class: 'form-msg' });
     const form = el('form', { class: 'form card login-card', novalidate: true },
       el('img', { src: '/img/logo.png', alt: 'Karma Omassery logo' }),
-      el('h1', {}, 'Admin login'),
+      el('h1', {}, 'Admin & moderator login'),
       el('div', { class: 'field' }, el('label', { for: 'l-user' }, 'Username'), el('input', { id: 'l-user', name: 'username', autocomplete: 'username', required: true })),
       el('div', { class: 'field' }, el('label', { for: 'l-pass' }, 'Password'), el('input', { id: 'l-pass', name: 'password', type: 'password', autocomplete: 'current-password', required: true })),
       el('button', { class: 'btn btn-primary', type: 'submit' }, 'Log in'), msg);
@@ -820,6 +923,7 @@
       const me = await api('/api/admin/me');
       ADMIN = me.admin;
       META = me.meta;
+      VIEWS = ALL_VIEWS.filter((v) => can(v[3]));
       const hash = location.hash.slice(1);
       if (VIEWS.some((v) => v[0] === hash)) current = hash;
       showShell();

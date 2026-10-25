@@ -152,6 +152,11 @@ function addColumn(table, column, definition) {
   if (!exists) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
 }
 addColumn('photos', 'event_id', 'INTEGER REFERENCES events(id) ON DELETE SET NULL');
+// Staff accounts: 'admin' has full access; 'moderator' only the sections listed in permissions.
+addColumn('admins', 'role', "TEXT DEFAULT 'admin'");
+addColumn('admins', 'permissions', "TEXT DEFAULT '[]'");
+addColumn('admins', 'member_id', 'INTEGER REFERENCES members(id) ON DELETE SET NULL');
+addColumn('admins', 'active', 'INTEGER DEFAULT 1');
 
 function getSetting(key, fallback = null) {
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);

@@ -98,3 +98,7 @@
 .skill-row .row-badges { flex-wrap: wrap; }
 .skill-row .row-main { flex: 1 1 150px; }
 .skill-row .row-main strong, .skill-row .row-main span { white-space: normal; }
+.check.perm { font-weight: 500; }
+.group-box legend { padding: 0 4px; }
+.pw-row { display: flex; gap: 8px; }
+.pw-row input { flex: 1; min-width: 0; font-family: ui-monospace, Menlo, monospace; }
